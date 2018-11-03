@@ -9,6 +9,7 @@ import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 
 import { TableComponent } from './table/table.component';
 import {Workout, Lap} from './app.component';
+import {WorkoutService} from './workout.service';
 
 @NgModule({
   declarations: [
@@ -25,7 +26,7 @@ import {Workout, Lap} from './app.component';
 	BrowserAnimationsModule,
 	HttpClientModule
   ],
-  providers: [Workout],
+  providers: [],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

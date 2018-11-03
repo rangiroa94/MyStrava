@@ -44,12 +44,17 @@ export class AppComponent implements AfterViewInit {
   selectedWindow: Window;
   newInnerHeight: number;
   newInnerWidth: number;
+  clickLapDistance: number;
+  clickLapTime: DatePipe;
+  resolution: number=1000;  // to get from server
+  workoutSize:number;
+  ratio: number;
         
   winLap: Window = new Window(this);
   winTrends: Window = new Window(this);
+  w1: Workout;
 
   @ViewChild('AgmMap') agmMap: AgmMap;
-  @Input() toFit: number;
 
   constructor(private http: HttpClient, private eltRef: ElementRef, private mapsAPILoader: MapsAPILoader) {
 
@@ -74,8 +79,6 @@ export class AppComponent implements AfterViewInit {
     this.getWorkout();
   }
 
-  public w1: Workout = new Workout();
-
           
   public getWorkout() {
     
@@ -92,16 +95,42 @@ export class AppComponent implements AfterViewInit {
       
     this.http.get(this.url).subscribe((w: Workout) => { 
       this.w1 = w;
+
+      this.w1.activity = new Array<Activity>();
+      // let jsonData = JSON.parse(w['act']); 
+      // console.log('jsonData=',jsonData);
+      w['act'].forEach(item => {
+        console.log('item=',item);
+      });
+
       this.w1.lap = new Array<Lap>();
+
       w['laps'].forEach(item => {
         let l1: Lap = new Lap();
         l1 = {
           lap_index: item.lap_index,
+          lap_start_index: item.lap_start_index,
+          lap_end_index: item.lap_end_index,
           lap_distance: item.lap_distance,
-          lap_time: item.lap_time
+          lap_time: item.lap_time,
+          lap_average_speed: Math.round(item.lap_average_speed*36)/10,
+          lap_average_cadence: item.lap_average_cadence,
+          lap_pace_zone: item.lap_pace_zone,
+          lap_total_elevation_gain: item.lap_total_elevation_gain,
+          lap_start: 0,
+          lap_end:0
         };
         this.w1.lap.push(l1);
       });
+      this.workoutSize = this.w1.lap[this.w1.lap.length-1].lap_end_index;
+      this.ratio = this.resolution / this.workoutSize;
+      console.log('ratio=', this.ratio);
+      let j:number;
+      for(j = 0;j<this.w1.lap.length;j++) {
+        this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
+        this.w1.lap[j].lap_end = Math.round(this.w1.lap[j].lap_end_index*this.ratio);
+      }
+
       this.w1.gpsCoord = new Array<Gps>();
         w['gps'].forEach(item => {
         let p1: Gps = new Gps();
@@ -115,6 +144,7 @@ export class AppComponent implements AfterViewInit {
       });
       console.log('w1=', this.w1);
       this.done = 1;
+      this.w1.loaded = true;
     });
 
   }
@@ -163,6 +193,36 @@ export class AppComponent implements AfterViewInit {
     });
   }
 
+  onLapSelected (numLap: number) {
+    console.log(">>>> onLapSelected, lap=", numLap);
+    let isSelected:boolean;
+    let speed:number;
+    if (numLap > 0) {
+      isSelected = true;
+      speed = 20;
+    } else {
+      isSelected = true;
+      numLap= numLap * (-1);
+      speed = 10;
+    }
+    numLap = numLap -1;
+    let i:number=0;
+    let lapSize:number=this.w1.lap[numLap].lap_end_index - this.w1.lap[numLap].lap_start_index;
+    
+    let start_idx = this.w1.lap[numLap].lap_start;
+    let end_idx = this.w1.lap[numLap].lap_end;
+    console.log(">>>> onLapSelected, lapSize=", lapSize, "speed=",speed);
+    for(i = start_idx;i<end_idx;i++) {
+      this.w1.gpsCoord[i].speed = speed;
+      // console.log(">>>> onLapSelected, i=",i,"speed=",this.w1.gpsCoord[i].speed);
+    }
+  }
+
+  clickedMarker(label: string, index: number) {
+    console.log(`clicked the marker: ${label || index}`)
+    this.clickLapDistance = this.w1.lap[index].lap_distance;
+    this.clickLapTime = this.w1.lap[index].lap_time;
+  }
 
   @HostListener('document:mousemove', ['$event'])
   onCornerMove(event: MouseEvent) {
@@ -205,8 +265,16 @@ export class AppComponent implements AfterViewInit {
 
 export class Lap {
   lap_index: number;
+  lap_start_index: number;
+  lap_end_index: number;
   lap_distance: number;
   lap_time: DatePipe;
+  lap_average_speed: number;
+  lap_average_cadence: number;
+  lap_pace_zone: number;
+  lap_total_elevation_gain: number;
+  lap_start: number;
+  lap_end:number;
 }
 
 export class Gps {
@@ -216,9 +284,17 @@ export class Gps {
   speed: number;
 }
 
+export class Activity {
+  time: string;
+  distance: string;
+  resolution: number;
+}
+
 export class Workout {
-  name: string;
+  name: string="fli";
   actId: number;
+  activity: Activity[];
+  loaded : boolean = false;
   lap: Lap[];
   gpsCoord: Gps[];
   constructor() {}

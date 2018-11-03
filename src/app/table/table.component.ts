@@ -1,8 +1,9 @@
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, ChangeDetectorRef  } from '@angular/core';
 import { DataSource } from '@angular/cdk/collections';
 import { Observable, of } from 'rxjs';
 import { animate, state, style, transition, trigger } from '@angular/animations';
-import {Workout, Lap} from '../app.component';
+import { Workout, Lap} from '../app.component';
+import { MatTabChangeEvent } from '@angular/material';
 
 @Component({
   selector: 'app-table',
@@ -16,19 +17,57 @@ import {Workout, Lap} from '../app.component';
     ]),
   ],
 })
-export class TableComponent {
+export class TableComponent implements OnInit {
   @Input() wkt: Workout;
-
+  @Output() lapSelected: EventEmitter<number>  = new EventEmitter<number>();
   nameTab: String = 'Laps';
   displayedColumns = ['lap_index', 'lap_distance', 'lap_time'];
-  dataSource = new lapDataSource(this.workout);
-  constructor(private workout: Workout) { 
-    this.workout = this.wkt;
-    console.log('TableComponent',this.wkt);
+  dataSource: lapDataSource;
+  public currentExpandedRow: any;
+  public expandRow: boolean = false;
+  constructor( private changeDetectorRefs: ChangeDetectorRef ) { 
+    console.log('TableComponent');
+  }
+  ngOnInit() {
+    console.log('wkt=',this.wkt);
+    this.dataSource = new lapDataSource(this.wkt);
   }
 
   isExpansionDetailRow = (i: number, row: Object) => row.hasOwnProperty('detailRow');
   expandedElement: any;
+  expansionDetailRowCollection = new Array<any>();
+
+  toggleRow(row: Lap) {
+    console.log('toggleRow, row=',row.lap_index);
+    this.expandRow = this.expansionDetailRowCollection.includes(row);  
+    if(this.expandRow !== true) {
+      this.expansionDetailRowCollection.push(row);
+      this.lapSelected.emit(row.lap_index);
+    } else {
+      // let index = this.explansionDetialRowCollection.findIndex(idRow => idRow.name === row.element.name);
+      let test = this.expansionDetailRowCollection[0].name;
+      // this.expansionDetailRowCollection.forEach( (item, index) => {
+      //  if(item.index === (row.lap_index-1)) this.expansionDetailRowCollection.splice(index, 1);
+      // });
+      const index = this.expansionDetailRowCollection.indexOf(row, 0);
+      if (index>-1) {
+        this.expansionDetailRowCollection.splice(index, 1);
+        this.lapSelected.emit(row.lap_index*-1);
+      }   
+    }
+    console.log('toggleRow, expansionCollection=',this.expansionDetailRowCollection);
+  }
+
+  refresh () {
+    this.changeDetectorRefs.detectChanges();
+  }
+
+  onLinkClick(event: MatTabChangeEvent) {
+     console.log('tab => ', event.tab);
+     this.refresh();
+    // this.router.navigate(['contacts']); 
+  }
+
 }
 
 
@@ -42,13 +81,16 @@ export class lapDataSource extends DataSource<Lap> {
   /** Connect function called by the table to retrieve one stream containing the data to render. */
   constructor(private workout: Workout) {
     super();
+    console.log('lapDataSource constructor');
   }
   connect(): Observable<Lap[]> {
     const rows = [];
-    this.workout.lap.forEach(element => rows.push(element, { detailRow: true, element }));
-    console.log(rows);
+    this.workout.lap.forEach(element => {rows.push(element, { detailRow: true, element })});
+    console.log('lapDataSource, rows=: ',rows);
     return of(rows);
   }
 
+
   disconnect() { }
 }
+

@@ -17,6 +17,7 @@
     font-family: 'Roboto','sans-serif';
     line-height: 30px;
   }
+ 
   .win {
         position: fixed;
         background-color: white;
@@ -37,7 +38,6 @@
 <div id="wrapper" fxLayout="column">
    <div *ngIf="done" id="google_map" fxFlex="1 1 100%" #google_map>
     <agm-map #AgmMap [style.height.px]="google_map.offsetHeight" [latitude]="lat" [longitude]="lng" (mapReady)="fitToScreen($event)">
-      <agm-marker [latitude]="lat" [longitude]="lng"></agm-marker>
       <ng-container>
            <agm-polyline *ngFor="let point of w1.gpsCoord;let i = index;"  [strokeColor]="point.speed < 11 ? '#2196f3': 'red'"i>
               <agm-polyline-point [latitude]="point.gps_lat" [longitude]="point.gps_long">
@@ -47,6 +47,27 @@
                 </agm-polyline-point>
                </ng-container>
           </agm-polyline>
+          <agm-marker 
+            *ngFor="let m of w1.lap; let i = index"
+            (markerClick)="clickedMarker(m.label, i)"
+            [latitude]="w1.gpsCoord[m.lap_start].gps_lat"
+            [longitude]="w1.gpsCoord[m.lap_start].gps_long"
+            [label]="m.lap_index.toString()">
+            <agm-info-window>
+              <strong>dist: {{clickLapDistance}} m<br>Time: {{clickLapTime}}<br></strong>
+            </agm-info-window>
+          </agm-marker>
+          <!--
+          <agm-marker 
+            *ngIf="done" let m = w1.laps[w1.laps.length-1]
+            [latitude]="w1.gpsCoord[m.lap_end_index].gps_lat"
+            [longitude]="w1.gpsCoord[m.lap_end_index].gps_long"
+            [label]="w1.gpsCoord[m.lap_end_index].lap_index.toString()">
+            <agm-info-window>
+              <strong>Total dist:  m<br>Total Time: <br></strong>
+            </agm-info-window>
+          </agm-marker>
+        -->
       </ng-container>
     </agm-map>
    </div>
@@ -63,23 +84,11 @@
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize'></div> 
       <div id="over_map">
-        <mat-tab-group>
-          <mat-tab label="Laps">
-            <app-table>[wkt]="w1"</app-table>
-            <!-- 
-            <h2>Laps for {{w1.name}}</h2>
-            <ul class="strava">
-              <li *ngFor="let lap of w1.lap">
-                <span class="badge">{{lap.lap_index}}</span> <span>{{lap.lap_distance/1000}}</span> <span>{{lap.lap_time}}</span>
-              </li>
-            </ul>
-            -->
-          </mat-tab>
-          <mat-tab label="Splits">
-            <h1>Some more tab content</h1>
-            <p>...</p>
-          </mat-tab>
-        </mat-tab-group>
+             
+          <app-table *ngIf="w1" [wkt]="w1" 
+              (lapSelected)="onLapSelected($event)">
+          </app-table> 
+        
       </div>
       <ul>
       </ul>   
