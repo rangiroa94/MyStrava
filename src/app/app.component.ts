@@ -45,7 +45,7 @@ export class AppComponent implements AfterViewInit {
   newInnerHeight: number;
   newInnerWidth: number;
   clickLapDistance: number;
-  clickLapTime: DatePipe;
+  clickLapTime: Date;
   resolution: number=1000;  // to get from server
   workoutSize:number;
   ratio: number;
@@ -95,18 +95,35 @@ export class AppComponent implements AfterViewInit {
       
     this.http.get(this.url).subscribe((w: Workout) => { 
       this.w1 = w;
+      console.log('w=',w);
 
-      this.w1.activity = new Array<Activity>();
-      // let jsonData = JSON.parse(w['act']); 
-      // console.log('jsonData=',jsonData);
-      w['act'].forEach(item => {
-        console.log('item=',item);
+      this.w1.name = w.act[0]['label'];
+      this.w1.act.distance = w.act[0]['distance']/1000;
+      this.w1.act.time = w.act[0]['time'];
+      this.resolution = w.act[0]['resolution'];
+
+      let d: Date = new Date(w.act[0]['strTime']);
+      console.log('start_date=',d, d.getTime()/1000);
+
+      this.w1.gpsCoord = new Array<Gps>();
+      w['gps'].forEach(item => {
+        let p1: Gps = new Gps();
+        // console.log('gps item=',item);
+        p1 = {
+          gps_index: item.gps_index,
+          gps_lat: item.gps_lat,
+          gps_long: item.gps_long,
+          gps_time: item.gps_time,
+          speed: 10
+        };
+        this.w1.gpsCoord.push(p1);
       });
 
       this.w1.lap = new Array<Lap>();
 
       w['laps'].forEach(item => {
         let l1: Lap = new Lap();
+        // console.log('lap item=',item);
         l1 = {
           lap_index: item.lap_index,
           lap_start_index: item.lap_start_index,
@@ -126,22 +143,20 @@ export class AppComponent implements AfterViewInit {
       this.ratio = this.resolution / this.workoutSize;
       console.log('ratio=', this.ratio);
       let j:number;
+      let curTime:number=0;
+      let idx = 0;
       for(j = 0;j<this.w1.lap.length;j++) {
-        this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
-        this.w1.lap[j].lap_end = Math.round(this.w1.lap[j].lap_end_index*this.ratio);
+        // this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
+        // this.w1.lap[j].lap_end = Math.round(this.w1.lap[j].lap_end_index*this.ratio);
+        this.w1.lap[j].lap_start = idx;
+        let t: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
+        curTime += t.getTime()/1000;
+        console.log('lap ',j+1,'lap_time=',this.w1.lap[j].lap_time, 
+          'curTime=',curTime, 'idx=',this.binaryIndexOf(curTime));
+        idx = this.binaryIndexOf(curTime);
+        this.w1.lap[j].lap_end = idx;
       }
 
-      this.w1.gpsCoord = new Array<Gps>();
-        w['gps'].forEach(item => {
-        let p1: Gps = new Gps();
-        p1 = {
-          gps_index: item.gps_index,
-          gps_lat: item.gps_lat,
-          gps_long: item.gps_long,
-          speed: 10
-        };
-        this.w1.gpsCoord.push(p1);
-      });
       console.log('w1=', this.w1);
       this.done = 1;
       this.w1.loaded = true;
@@ -192,6 +207,37 @@ export class AppComponent implements AfterViewInit {
       console.log("load Agm");
     });
   }
+
+  binaryIndexOf(searchElement) {
+    'use strict';
+ 
+    var minIndex = 0;
+    var maxIndex = this.resolution - 1;
+    var accuracy = this.workoutSize/this.resolution;
+    var currentIndex;
+    var currentElement;
+    // console.log ('binaryIndexOf, searchElement=', searchElement);
+    while (minIndex <= maxIndex) {
+        currentIndex = (minIndex + maxIndex) / 2 | 0;
+        // console.log ('binaryIndexOf, currentIndex=', currentIndex);
+        currentElement = this.w1.gpsCoord[currentIndex].gps_time;
+ 
+        if ( (currentElement < searchElement) && 
+             (Math.abs(currentElement-searchElement)>accuracy) ) {
+            minIndex = currentIndex + 1;
+        }
+        else if ( (currentElement > searchElement) && 
+                  (Math.abs(currentElement-searchElement)>accuracy) ) {
+            maxIndex = currentIndex - 1;
+        }
+        else {
+            return currentIndex;
+        }
+    }
+ 
+    return -1;
+  }
+
 
   onLapSelected (numLap: number) {
     console.log(">>>> onLapSelected, lap=", numLap);
@@ -268,7 +314,7 @@ export class Lap {
   lap_start_index: number;
   lap_end_index: number;
   lap_distance: number;
-  lap_time: DatePipe;
+  lap_time: Date;
   lap_average_speed: number;
   lap_average_cadence: number;
   lap_pace_zone: number;
@@ -281,19 +327,20 @@ export class Gps {
   gps_index: number;
   gps_lat: number;
   gps_long: number;
+  gps_time: number;
   speed: number;
 }
 
 export class Activity {
   time: string;
-  distance: string;
+  distance: number;
   resolution: number;
 }
 
 export class Workout {
   name: string="fli";
   actId: number;
-  activity: Activity[];
+  act: Activity;
   loaded : boolean = false;
   lap: Lap[];
   gpsCoord: Gps[];
