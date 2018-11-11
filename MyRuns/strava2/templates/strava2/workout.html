@@ -1,0 +1,23 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>MyStrava</title>
+    <base href="/">
+    
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="icon" type="image/x-icon" href="favicon.ico"><link href="static/styles.bbcba908e7286e7df93e.bundle.css" rel="stylesheet"/>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <app-root> Loading {{workout.id}} ...</app-root>
+<script>
+      localStorage.setItem('wid', {{workout.id}});
+</script>
+<script type="text/javascript" src="{% static 'runtime.a66f828dca56eeb90e02.js' %}"></script>
+<script type="text/javascript" src="{% static 'polyfills.bb29cf6ec368650e9f3d.js' %}"></script>
+<script type="text/javascript" src="{% static 'main.8fa9e1041931880ed1e8.js' %}"></script>
+</body>
+</html>
+

@@ -1,0 +1,9 @@
+{% if not latest_auth %}
+    <ul>
+    {% for login in listLogin %}
+		<li><a href="/strava2/{{ login.id }}/">{{ login.name }}</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>Authorized login.</p>
+{% endif %}
