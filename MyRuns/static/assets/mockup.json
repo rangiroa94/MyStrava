@@ -6,15 +6,15 @@
 	"time": "45:05","resolution": "2707"}
 	],
 "laps": [
-    {"lap_index": 1, "lap_distance": 4789, "lap_time": "00:16:18", "lap_start_index": 0, "lap_end_index": 978}, 
-    {"lap_index": 2, "lap_distance": 988, "lap_time": "00:03:47", "lap_start_index": 979, "lap_end_index": 1205}, 
-    {"lap_index": 3, "lap_distance": 221, "lap_time": "00:01:21", "lap_start_index": 1206, "lap_end_index": 1286}, 
-    {"lap_index": 4, "lap_distance": 1014, "lap_time": "00:03:46", "lap_start_index": 1287, "lap_end_index": 1512}, 
-    {"lap_index": 5, "lap_distance": 213, "lap_time": "00:01:22", "lap_start_index": 1513, "lap_end_index": 1594}, 
-    {"lap_index": 6, "lap_distance": 1013, "lap_time": "00:05:22", "lap_start_index": 1595, "lap_end_index": 1916}, 
-    {"lap_index": 7, "lap_distance": 219, "lap_time": "00:01:26", "lap_start_index": 1917, "lap_end_index": 2002}, 
-    {"lap_index": 8, "lap_distance": 1006, "lap_time": "00:03:42", "lap_start_index": 2003, "lap_end_index": 2224}, 
-    {"lap_index": 9, "lap_distance": 1454, "lap_time": "00:08:00", "lap_start_index": 2225, "lap_end_index": 2706}
+    {"lap_index": 1, "lap_distance": 4789, "lap_time": "00:16:18", "lap_start_date": "2018-11-18 09:00:00+00:00", "lap_start_index": 0, "lap_end_index": 978}, 
+    {"lap_index": 2, "lap_distance": 988, "lap_time": "00:03:47", "lap_start_date": "2018-11-18 09:16:18+00:00", "lap_start_index": 979, "lap_end_index": 1205}, 
+    {"lap_index": 3, "lap_distance": 221, "lap_time": "00:01:21", "lap_start_date": "2018-11-18 09:20:05+00:00", "lap_start_index": 1206, "lap_end_index": 1286}, 
+    {"lap_index": 4, "lap_distance": 1014, "lap_time": "00:03:46", "lap_start_date": "2018-11-18 09:21:26+00:00", "lap_start_index": 1287, "lap_end_index": 1512}, 
+    {"lap_index": 5, "lap_distance": 213, "lap_time": "00:01:22", "lap_start_date": "2018-11-18 09:25:12+00:00", "lap_start_index": 1513, "lap_end_index": 1594}, 
+    {"lap_index": 6, "lap_distance": 1013, "lap_time": "00:05:22", "lap_start_date": "2018-11-18 09:26:36+00:00", "lap_start_index": 1595, "lap_end_index": 1916}, 
+    {"lap_index": 7, "lap_distance": 219, "lap_time": "00:01:26", "lap_start_date": "2018-11-18 09:31:58+00:00", "lap_start_index": 1917, "lap_end_index": 2002}, 
+    {"lap_index": 8, "lap_distance": 1006, "lap_time": "00:03:42", "lap_start_date": "2018-11-18 09:33:24+00:00", "lap_start_index": 2003, "lap_end_index": 2224}, 
+    {"lap_index": 9, "lap_distance": 1454, "lap_time": "00:08:00", "lap_start_date": "2018-11-18 09:37:06+00:00", "lap_start_index": 2225, "lap_end_index": 2706}
     ],
 "gps": [
  {"gps_index": 0, "gps_lat": 48.823132999999999, "gps_long": 2.4563799999999998, "gps_time": 0},

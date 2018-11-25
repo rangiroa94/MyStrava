@@ -49,6 +49,10 @@
     align-items: stretch;
 }
 
+.highlight{
+  color: red;
+}
+
 .element-row {
   position: relative;
 }

@@ -1,4 +1,5 @@
-import { Component, ElementRef, HostListener, ViewChild, OnInit, AfterViewInit, OnChanges, SimpleChanges, Input } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, OnInit, AfterViewInit, 
+  OnChanges, SimpleChanges, Input, Inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
@@ -6,8 +7,14 @@ import { map } from 'rxjs/operators';
 import { CollectionViewer, DataSource } from '@angular/cdk/collections';
 import { GoogleMapsAPIWrapper, AgmMap, LatLngBounds, LatLngBoundsLiteral, MapsAPILoader } from '@agm/core';
 import { animate, state, style, transition, trigger } from '@angular/animations';
+import { MatDialog, MatDialogRef, MAT_DIALOG_DATA, MatCheckbox } from '@angular/material';
 
 declare var google: any;
+
+export interface DialogData {
+  showLap: boolean;
+  showTrends: boolean;
+}
 
 @Component({
   selector: 'app-root',
@@ -45,21 +52,37 @@ export class AppComponent implements AfterViewInit {
   newInnerHeight: number;
   newInnerWidth: number;
   clickLapDistance: number;
-  clickLapTime: Date;
+  clickLapTime: string;
   resolution: number=1000;  // to get from server
   workoutSize:number;
   ratio: number;
+  lapSize: number = 0;
+  lapInfos: infos = new infos();
+  infosData: infoTable[] = [
+    {title: 'Total time', value: ''},
+    {title: 'Average time', value: ''},
+    {title: 'Average Pace', value: ''},
+    {title: 'Total dist. (km)', value: ''},
+  ];
+  displayedColumns: string[] = ['title', 'value'];
+  showLaps: boolean = true;  
+  showTrends: boolean = true;      
         
   winLap: Window = new Window(this);
   winTrends: Window = new Window(this);
+  winInfos: Window = new Window(this);
+ 
   w1: Workout;
 
   @ViewChild('AgmMap') agmMap: AgmMap;
 
-  constructor(private http: HttpClient, private eltRef: ElementRef, private mapsAPILoader: MapsAPILoader) {
+  constructor(private http: HttpClient, private eltRef: ElementRef, 
+    private mapsAPILoader: MapsAPILoader, public dialog: MatDialog) {
 
     this.newInnerHeight = window.innerHeight;
     this.newInnerWidth = window.innerWidth;
+
+    this.lapInfos.show = false;
 
     this.updateView();
       
@@ -98,6 +121,7 @@ export class AppComponent implements AfterViewInit {
       console.log('w=',w);
 
       this.w1.name = w.act[0]['label'];
+      this.w1.dayTime = w.act[0]['strTime'];
       this.w1.act.distance = w.act[0]['distance']/1000;
       this.w1.act.time = w.act[0]['time'];
       this.resolution = w.act[0]['resolution'];
@@ -130,6 +154,8 @@ export class AppComponent implements AfterViewInit {
           lap_end_index: item.lap_end_index,
           lap_distance: item.lap_distance,
           lap_time: item.lap_time,
+          lap_start_date: item.lap_start_date,
+          lap_cumulatedTime: "00:00:00",
           lap_average_speed: Math.round(item.lap_average_speed*36)/10,
           lap_average_cadence: item.lap_average_cadence,
           lap_pace_zone: item.lap_pace_zone,
@@ -139,25 +165,49 @@ export class AppComponent implements AfterViewInit {
         };
         this.w1.lap.push(l1);
       });
+      this.lapSize = this.w1.lap.length;
       this.workoutSize = this.w1.lap[this.w1.lap.length-1].lap_end_index;
       this.ratio = this.resolution / this.workoutSize;
       console.log('ratio=', this.ratio);
       let j:number;
-      let curTime:number=0;
       let idx = 0;
+      let t: Date = new Date(this.w1.lap[0].lap_start_date);
+      let curTime:number=t.getTime()/1000;
+      let splitTime=0;
+      let computeLapTime=0;
       for(j = 0;j<this.w1.lap.length;j++) {
         // this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
         // this.w1.lap[j].lap_end = Math.round(this.w1.lap[j].lap_end_index*this.ratio);
         this.w1.lap[j].lap_start = idx;
-        let t: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
-        curTime += t.getTime()/1000;
+        // let t: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
+        if (j<this.w1.lap.length-1) {
+            let t2: Date = new Date(this.w1.lap[j+1].lap_start_date);
+            splitTime += t2.getTime()/1000 - curTime;
+            computeLapTime = t2.getTime()/1000 - curTime;
+            curTime = t2.getTime()/1000;
+            let hh:number = Math.trunc(computeLapTime/3600);
+            let mm:number = Math.trunc(computeLapTime/60)-hh*60;
+            let ss:number = computeLapTime-hh*3600-mm*60;
+            this.w1.lap[j].lap_time = String(hh).padStart(2, '0') + ':' +
+              String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');;
+        } else {
+            let t2: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
+            splitTime += t2.getTime()/1000
+        }
+        
         console.log('lap ',j+1,'lap_time=',this.w1.lap[j].lap_time, 
-          'curTime=',curTime, 'idx=',this.binaryIndexOf(curTime));
-        idx = this.binaryIndexOf(curTime);
+          'splitTime=',splitTime, 'idx=',this.binaryIndexOf(splitTime));
+        let hh:number = Math.trunc(splitTime/3600);
+        let mm:number = Math.trunc(splitTime/60)-hh*60;
+        let ss:number = splitTime-hh*3600-mm*60;
+        this.w1.lap[j].lap_cumulatedTime = String(hh).padStart(2, '0') + ':' +
+          String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+        idx = this.binaryIndexOf(splitTime);
         this.w1.lap[j].lap_end = idx;
       }
 
       console.log('w1=', this.w1);
+      console.log('lapSize=', this.lapSize);
       this.done = 1;
       this.w1.loaded = true;
     });
@@ -166,11 +216,11 @@ export class AppComponent implements AfterViewInit {
 
   updateView () {
     this.winLap.x = 50;
-    this.winLap.y = 150;
+    this.winLap.y = 130;
     this.winLap.px = 0;
     this.winLap.py = 0;
     this.winLap.width = 300;
-    this.winLap.height = 600;
+    this.winLap.height = 500;
     this.winLap.draggingCorner = false;
     this.winLap.draggingWindow = false;
     this.winTrends.minArea = 20000
@@ -184,6 +234,16 @@ export class AppComponent implements AfterViewInit {
     this.winTrends.draggingCorner = false;
     this.winTrends.draggingWindow = false;
     this.winTrends.minArea = 20000;
+
+    this.winInfos.x = 50;
+    this.winInfos.y = window.innerHeight - 0.2 * window.innerHeight - 10;
+    this.winInfos.px = 0;
+    this.winInfos.py = 0;
+    this.winInfos.width = 300;
+    this.winInfos.height = 102;
+    this.winInfos.draggingCorner = false;
+    this.winInfos.draggingWindow = false;
+    this.winInfos.minArea = 20000;
 
   }
 
@@ -240,7 +300,7 @@ export class AppComponent implements AfterViewInit {
 
 
   onLapSelected (numLap: number) {
-    console.log(">>>> onLapSelected, lap=", numLap);
+    // console.log(">>>> onLapSelected, lap=", numLap);
     let isSelected:boolean;
     let speed:number;
     if (numLap > 0) {
@@ -253,21 +313,55 @@ export class AppComponent implements AfterViewInit {
     }
     numLap = numLap -1;
     let i:number=0;
-    let lapSize:number=this.w1.lap[numLap].lap_end_index - this.w1.lap[numLap].lap_start_index;
     
     let start_idx = this.w1.lap[numLap].lap_start;
     let end_idx = this.w1.lap[numLap].lap_end;
-    console.log(">>>> onLapSelected, lapSize=", lapSize, "speed=",speed);
+    // console.log(">>>> onLapSelected, speed=",speed);
     for(i = start_idx;i<end_idx;i++) {
       this.w1.gpsCoord[i].speed = speed;
       // console.log(">>>> onLapSelected, i=",i,"speed=",this.w1.gpsCoord[i].speed);
     }
   }
 
+  onLapInfos(data: infos) {
+    console.log(">>>> onLapInfos, total dist=",data.total_dist, 
+      "average time=",data.average_time,
+      "nbValues=",data.nbValues);
+
+    if ( data.nbValues > 1) {
+      this.lapInfos.show = true;
+    }  else {
+      this.lapInfos.show = false;
+    }
+    this.infosData[0]['value'] = data.total_time;
+    this.infosData[1]['value'] = data.average_time;
+    this.infosData[2]['value'] = data.average_speed;
+    this.infosData[3]['value'] = String(data.total_dist);
+    console.log(">>>> onLapInfos, infosData=",this.infosData);
+  }
+
   clickedMarker(label: string, index: number) {
-    console.log(`clicked the marker: ${label || index}`)
-    this.clickLapDistance = this.w1.lap[index].lap_distance;
-    this.clickLapTime = this.w1.lap[index].lap_time;
+    console.log('clicked the marker:', index);
+    let idx:number = index-1;
+    if (idx>=0) {
+      this.clickLapDistance = this.w1.lap[idx].lap_distance;
+      this.clickLapTime = this.w1.lap[idx].lap_time.toString();
+    } else {
+      this.clickLapDistance = 0;
+      this.clickLapTime = "00:00:00";  
+    }
+  }
+
+  onClickSettings () {
+    console.log('clicked Settings button');
+    const dialogRef = this.dialog.open(settingsDialog, {
+      width: '250px',
+      data: {showLaps: this.showLaps, showTrends: this.showTrends}
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      console.log('The dialog was closed');
+    });
   }
 
   @HostListener('document:mousemove', ['$event'])
@@ -314,13 +408,29 @@ export class Lap {
   lap_start_index: number;
   lap_end_index: number;
   lap_distance: number;
-  lap_time: Date;
+  lap_time: string;
+  lap_start_date: string;
+  lap_cumulatedTime: string;
   lap_average_speed: number;
   lap_average_cadence: number;
   lap_pace_zone: number;
   lap_total_elevation_gain: number;
   lap_start: number;
   lap_end:number;
+}
+
+export interface infoTable {
+  title: string;
+  value: string;
+}
+
+export class infos {
+  total_dist: number;
+  total_time: string;
+  average_time: string;
+  average_speed: string;
+  nbValues: number;
+  show: boolean;
 }
 
 export class Gps {
@@ -339,6 +449,7 @@ export class Activity {
 
 export class Workout {
   name: string="fli";
+  dayTime: string;
   actId: number;
   act: Activity;
   loaded : boolean = false;
@@ -422,4 +533,20 @@ export class Window {
     event.preventDefault();
     event.stopPropagation();
   }
+}
+
+@Component({
+  selector: 'settings-dialog',
+  templateUrl: 'settings-dialog.html',
+})
+export class settingsDialog {
+
+  constructor(
+    public dialogRef: MatDialogRef<settingsDialog>,
+    @Inject(MAT_DIALOG_DATA) public data: DialogData) {}
+
+  onNoClick(): void {
+    this.dialogRef.close();
+  }
+
 }

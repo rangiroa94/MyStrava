@@ -157,11 +157,12 @@ class WorkoutDetail(APIView):
             print ('strLap,end_index=',strLap.end_index)
             print ('strLap,lap_average_cadence=',strLap.average_cadence)
             print ('start_date=',strLap.start_date)
+            print ('lap_time=',strLap.elapsed_time)
             if strLap.average_cadence is None:
                 strLap.average_cadence=0;
             lap = Lap.objects.filter(workout__id=workout.id, lap_index=i)
             if not lap.exists():
-                lap = Lap.objects.create(lap_index=strLap.lap_index, lap_start_index=strLap.start_index, lap_end_index=strLap.end_index, lap_distance=strLap.distance, lap_time=strLap.elapsed_time, lap_average_speed=strLap.average_speed, lap_average_cadence=strLap.average_cadence, lap_pace_zone=strLap.pace_zone, lap_total_elevation_gain=strLap.total_elevation_gain, workout=workout)
+                lap = Lap.objects.create(lap_index=strLap.lap_index, lap_start_index=strLap.start_index, lap_end_index=strLap.end_index, lap_distance=strLap.distance, lap_time=strLap.elapsed_time, lap_start_date=strLap.start_date, lap_average_speed=strLap.average_speed, lap_average_cadence=strLap.average_cadence, lap_pace_zone=strLap.pace_zone, lap_total_elevation_gain=strLap.total_elevation_gain, workout=workout)
                 print ('total_elevation_gain=',strLap.total_elevation_gain)
                 print ('pace_zone=',strLap.pace_zone)
                 

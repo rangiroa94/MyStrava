@@ -46,6 +46,7 @@ class Lap(models.Model):
     lap_end_index = models.IntegerField(default=0)
     lap_distance = models.IntegerField(default=0)
     lap_time = models.DurationField(default=0)
+    lap_start_date = models.CharField(max_length=30,default='')
     lap_average_speed = models.FloatField(default=0)
     lap_average_cadence = models.IntegerField(default=0)
     lap_pace_zone = models.IntegerField(default=0)

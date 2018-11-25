@@ -15,7 +15,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 class LapSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lap
-        fields = ('lap_index', 'lap_distance', 'lap_time', 'lap_average_speed', 'lap_average_cadence','lap_pace_zone','lap_total_elevation_gain','lap_start_index','lap_end_index')
+        fields = ('lap_index', 'lap_distance', 'lap_time', 'lap_start_date', 'lap_average_speed', 'lap_average_cadence','lap_pace_zone','lap_total_elevation_gain','lap_start_index','lap_end_index')
         
 class gpsCoordSerializer(serializers.Serializer):
     gps_index = serializers.IntegerField()
