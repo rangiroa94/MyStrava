@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404, render, redirect
-from .models import Login, Activity, Workout, Lap, GpsCoord
+from .models import Login, Activity, Workout, Lap, GpsCoord, HeartRate, Speed, Elevation
 from django.views import generic
 from stravalib import Client
 from datetime import datetime, timedelta
@@ -130,15 +130,15 @@ class WorkoutDetail(APIView):
         workout = self.get_object(pk)
         self.client = Client(self.request.session.get('access_token'))
         print('WorkoutDetail, client=',self.client)
-        types = ['time', 'distance', 'latlng', 'altitude', 'heartrate', ]
+        types = ['time', 'distance', 'latlng', 'altitude', 'heartrate', 'velocity_smooth']
         print('WorkoutDetail, workout.actId=',workout.actId)
         activity = get_object_or_404(Activity, id=workout.actId)
         print('WorkoutDetail, activity.stravaId=',activity.stravaId)
         streams = self.client.get_activity_streams(activity_id=activity.stravaId,resolution='medium',types=types)
         print ('streams=',streams)
-        print('time seq size=',len(streams['time'].data))
+        #print('time seq size=',len(streams['time'].data))
         #print('time seq',streams['time'].data)
-        #print('dist seq',streams['distance'].data)
+        #print('dist seq',streams['heartrate'].data)
         gps = GpsCoord.objects.filter(workout__id=workout.id)
         print ('gps first element=',gps.count())
         if not gps.count():
@@ -148,6 +148,27 @@ class WorkoutDetail(APIView):
             ]
             coord = GpsCoord.objects.bulk_create(objs)
         
+        hr = HeartRate.objects.filter(workout__id=workout.id)
+        if not hr.count():
+            objs = [
+                HeartRate(hr_index=i,hr_value=hr,workout=workout) for i, hr in enumerate(streams['heartrate'].data)
+            ]
+            coord = HeartRate.objects.bulk_create(objs)
+            
+        speed = Speed.objects.filter(workout__id=workout.id)
+        if not speed.count():
+            objs = [
+                Speed(speed_index=i,speed_value=speed,workout=workout) for i, speed in enumerate(streams['velocity_smooth'].data)
+            ]
+            coord = Speed.objects.bulk_create(objs)
+            
+        elevation = Elevation.objects.filter(workout__id=workout.id)
+        if not elevation.count():
+            objs = [
+                Elevation(elevation_index=i,elevation_value=elevation,workout=workout) for i, elevation in enumerate(streams['altitude'].data)
+            ]
+            coord = Elevation.objects.bulk_create(objs)
+            
         laps = self.client.get_activity_laps(activity.stravaId)
         i=0
         for strLap in laps:

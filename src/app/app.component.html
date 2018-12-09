@@ -34,14 +34,14 @@
       zoom: 1
   }
 
-   #HeadContainer {
+  #HeadContainer {
     display: flex;
     justify-content: space-between;
-   }
+  }
 
-   #wrapper { position: relative; }
-   #google_map { height : 100vh }
-   #over_map { 
+  #wrapper { position: relative; }
+  #google_map { height : 100vh }
+  #over_map { 
     position: absolute; top: 5px; left: 5px; z-index: 99; 
     width:90%; 
     height:90%;
@@ -62,20 +62,42 @@
   }
 
   .win {
-        position: fixed;
-        background-color: white;
-        opacity: 1;
-        border: 2px solid #999;
-        }
+      position: fixed;
+      background-color: white;
+      opacity: 1;
+      font-family: 'Roboto','sans-serif';
+      border: 2px solid #999;
+      padding: 5px;
+      line-height: 30px;
+  }
   .win-corner-resize {
       position: absolute;
       width: 10px;
       height: 10px;
+      cursor: all-scroll;
   }
   #win-top-left-resize { top: 0px; left: 0px; }
   #win-top-right-resize { top: 0px; right: 0px; }
   #win-bottom-left-resize { bottom: 0px; left: 0px; }
   #win-bottom-right-resize { bottom: 0px; right: 0px; }
+
+  ::ng-deep .mat-checkbox .mat-checkbox-frame {
+    border-color: violet;
+  }
+
+  ::ng-deep .mat-checkbox-checked .mat-checkbox-background {
+    background-color: darkcyan !important;
+  }
+
+  .charts {
+      width: 100%;
+      height: 100%;
+      margin: 0px;
+      border: 4px;
+      overflow: hidden; /*  Disable scrollbars */
+      position: absolute;
+    }
+
 </style>
 
 <div id="wrapper" fxLayout="column">
@@ -112,8 +134,23 @@
       </ng-container>
     </agm-map>
    </div>
-
-   <div id='laps' [style.top.px]='winLap.y'
+   <div id='settings' *ngIf="showSettings"
+                   [style.top.px]='winSettings.y'
+                   [style.left.px]='winSettings.x'
+                   [style.width.px]='winSettings.width'
+                   [style.height.px]='winSettings.height'
+                   class='win'>
+      <section class="checkButtons">
+        <mat-checkbox  class="mycheckbox" (change)="showLaps = !showLaps"
+                       [(checked)]="showLaps">Show Laps
+        </mat-checkbox>
+        <mat-checkbox  class="mycheckbox" (change)="showTrends = !showTrends"
+                       [(checked)]="showTrends">Show Trends
+        </mat-checkbox>
+      </section>
+   </div>
+   <div id='laps' *ngIf="showLaps"
+                   [style.top.px]='winLap.y'
                    [style.left.px]='winLap.x'
                    [style.width.px]='winLap.width'
                    [style.height.px]='winLap.height'
@@ -124,16 +161,14 @@
         <div (mousedown)='winLap.onCornerClick($event, winLap.topRightResize)' id='win-top-right-resize' class='win-corner-resize'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize'></div> 
-      <div id="over_map">
-          <app-table *ngIf="w1" [wkt]="w1" 
+        <app-table *ngIf="w1" [wkt]="w1" 
               (lapSelected)="onLapSelected($event)"
               (lapInfos)="onLapInfos($event)">
-          </app-table> 
-      </div>
-      <ul>
-      </ul>   
+        </app-table> 
+
    </div> 
-   <div id='trends' [style.top.px]='winTrends.y'
+   <div id='trends' *ngIf="showTrends"
+                   [style.top.px]='winTrends.y'
                    [style.left.px]='winTrends.x'
                    [style.width.px]='winTrends.width'
                    [style.height.px]='winTrends.height'
@@ -144,6 +179,19 @@
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.topRightResize)' id='win-top-right-resize' class='win-corner-resize'></div>    
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize'></div>    
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize'></div> 
+
+          <jqxChart #myChart *ngIf="done"
+            (onClick)="chartEvent($event)" (onToggle)="chartEvent($event)"
+            (mouseleave)="chartEvent($event)" (mouseenter)="chartEvent($event)" 
+              [width]="winTrends.width" [height]="winTrends.height"
+              [title]="'Trends'"
+              [description]="'whole workout'"
+              [showLegend]="true" [padding]="padding"
+              [enableCrosshairs]="true" 
+              [crosshairsDashStyle]="'1,2'" [crosshairsLineWidth]="'3'" [crosshairsColor]="'#888888'" 
+              [titlePadding]="titlePadding" [source]="hrData" [xAxis]="xAxis"
+              [seriesGroups]="seriesGroups" [colorScheme]="'scheme05'">
+          </jqxChart>
    </div>
    <div *ngIf="lapInfos.show"
           [style.top.px]='winInfos.y'

@@ -7,7 +7,9 @@ import { map } from 'rxjs/operators';
 import { CollectionViewer, DataSource } from '@angular/cdk/collections';
 import { GoogleMapsAPIWrapper, AgmMap, LatLngBounds, LatLngBoundsLiteral, MapsAPILoader } from '@agm/core';
 import { animate, state, style, transition, trigger } from '@angular/animations';
-import { MatDialog, MatDialogRef, MAT_DIALOG_DATA, MatCheckbox } from '@angular/material';
+import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+import { Chart } from 'chart.js';
+import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
 
 declare var google: any;
 
@@ -66,23 +68,103 @@ export class AppComponent implements AfterViewInit {
   ];
   displayedColumns: string[] = ['title', 'value'];
   showLaps: boolean = true;  
-  showTrends: boolean = true;      
+  showTrends: boolean = true;    
+  showSettings: boolean = true;  
         
   winLap: Window = new Window(this);
   winTrends: Window = new Window(this);
   winInfos: Window = new Window(this);
+  winSettings: Window = new Window(this);
+
+  marker: any;
+  map: any;
+
+  hrData: Array<number> = new Array<number>();
+  hrIdx:  Array<number> = new Array<number>();
+  elevationData: Array<number> = new Array<number>();
+
+  padding: any = { left: 5, top: 5, right: 15, bottom: 5 };
+  titlePadding: any = { left: 0, top: 0, right: 0, bottom: 10 };
+  xAxis: any =
+  {
+      valuesOnTicks: true,
+      labels:
+        {
+            formatFunction: (value: any): string => {
+                return value;
+            },
+            angle: 0,
+            horizontalAlignment: 'right'
+        },
+      tickMarks: { visible: true }
+  };
+
+  seriesGroups: any[] =
+  [
+      {
+          type: 'stepline',
+          source: this.hrData,
+          toolTipFormatFunction: (value: any, itemIndex: any, serie: any, group: any, categoryValue: any, categoryAxis: any) => {
+              let dataItem = this.hrData[itemIndex];
+              return '<DIV style="text-align:left"><b>Index:</b> ' +
+                  itemIndex + '<br /><b>HR:</b> ' +
+                  value + '<br /></DIV>';
+          },
+          valueAxis:
+          {
+              title: { text: 'HeartRate<br>' },
+              flip: false,
+              labels: { horizontalAlignment: 'right' }
+          },
+          series:
+          [
+              { displayText: 'HeartRate', lineWidth: 2, lineColor: '#ff1a1a' }
+          ]
+      },
+      {
+          type: 'area',
+          source: this.elevationData,
+          toolTipFormatFunction: (value: any, itemIndex: any, serie: any, 
+            group: any, categoryValue: any, categoryAxis: any) => {
+              let dataItem = this.elevationData[itemIndex];
+              let pos = {
+                      lat: this.w1.gpsCoord[itemIndex].gps_lat,
+                      lng: this.w1.gpsCoord[itemIndex].gps_long
+                    }
+              console.log('marker: ', pos, this.marker);
+              this.marker.setVisible(true);
+              this.marker.setPosition(pos);
+              return '<DIV style="text-align:left"><b>Index:</b> ' +
+                  itemIndex + '<br /><b>HR:</b> ' +
+                  value + '<br /></DIV>';
+          },
+          valueAxis:
+          {
+              title: { text: 'Altitude<br>' },
+              flip: false,
+              labels: { horizontalAlignment: 'right' }
+          },
+          series:
+          [
+              { displayText: 'Altitude', lineWidth: 1, lineColor: '#d7d5d5', 
+              opacity: 0.3  }
+          ]
+      }
+  ];
  
   w1: Workout;
 
   @ViewChild('AgmMap') agmMap: AgmMap;
 
   constructor(private http: HttpClient, private eltRef: ElementRef, 
-    private mapsAPILoader: MapsAPILoader, public dialog: MatDialog) {
+    private mapsAPILoader: MapsAPILoader, public dialog: MatDialog,
+    private gmapsApi: GoogleMapsAPIWrapper) {
 
     this.newInnerHeight = window.innerHeight;
     this.newInnerWidth = window.innerWidth;
 
     this.lapInfos.show = false;
+    this.showSettings = false;
 
     this.updateView();
       
@@ -102,6 +184,9 @@ export class AppComponent implements AfterViewInit {
     this.getWorkout();
   }
 
+  ngOnInit(){
+      
+    }
           
   public getWorkout() {
     
@@ -169,6 +254,22 @@ export class AppComponent implements AfterViewInit {
       this.workoutSize = this.w1.lap[this.w1.lap.length-1].lap_end_index;
       this.ratio = this.resolution / this.workoutSize;
       console.log('ratio=', this.ratio);
+
+      let k:number = 0;
+      w['heartrate'].forEach(item => {
+        let h1: Heartrate = new Heartrate();
+        h1 = {
+          hr_value: item.hr_value,
+        };
+        this.w1.heartrate.push(h1);
+        this.hrData.push(item.hr_value);
+        this.hrIdx.push(k++);       
+      });
+      k = 0;
+      w['elevation'].forEach(item => {
+        this.elevationData.push(Math.round(item.elevation_value*10)/10);
+      });
+
       let j:number;
       let idx = 0;
       let t: Date = new Date(this.w1.lap[0].lap_start_date);
@@ -210,6 +311,7 @@ export class AppComponent implements AfterViewInit {
       console.log('lapSize=', this.lapSize);
       this.done = 1;
       this.w1.loaded = true;
+
     });
 
   }
@@ -245,6 +347,16 @@ export class AppComponent implements AfterViewInit {
     this.winInfos.draggingWindow = false;
     this.winInfos.minArea = 20000;
 
+    this.winSettings.x = window.innerWidth - 0.1 * window.innerWidth - 50;
+    this.winSettings.y = 50;
+    this.winSettings.px = 0;
+    this.winSettings.py = 0;
+    this.winSettings.width = 0.1 * window.innerWidth;
+    this.winSettings.height = 0.2 * window.innerHeight;
+    this.winSettings.draggingCorner = false;
+    this.winSettings.draggingWindow = false;
+    this.winSettings.minArea = 20000;
+
   }
 
   fitToScreen(event) {
@@ -259,6 +371,27 @@ export class AppComponent implements AfterViewInit {
     console.log('this.lng=', this.lng);
     event.panBy(-(this.winLap.width/2), this.winTrends.height / 1.6)
     console.log('zoom=', event.zoom);
+
+    this.map = event;
+    // console.log ('map=',this.map);
+
+    let pos = {
+      lat: this.lat,
+      lng: this.lng
+    }
+    let svgIcon = {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 4,
+      strokeColor: '#393'
+    };
+
+    this.marker = new google.maps.Marker({
+        map: this.map,
+        position: pos,
+        icon: svgIcon
+    })
+    this.marker.setVisible(false);
+
   }
 
   ngAfterViewInit() {
@@ -266,6 +399,7 @@ export class AppComponent implements AfterViewInit {
     this.mapsAPILoader.load().then(() => {
       console.log("load Agm");
     });
+
   }
 
   binaryIndexOf(searchElement) {
@@ -354,14 +488,25 @@ export class AppComponent implements AfterViewInit {
 
   onClickSettings () {
     console.log('clicked Settings button');
-    const dialogRef = this.dialog.open(settingsDialog, {
-      width: '250px',
-      data: {showLaps: this.showLaps, showTrends: this.showTrends}
-    });
+    this.showSettings = !this.showSettings;
+  }
 
-    dialogRef.afterClosed().subscribe(result => {
-      console.log('The dialog was closed');
-    });
+  chartEvent(event: any): any {
+        let eventData;
+        console.log('chartEvent: ',event.type, 'data=',event.elementIndex);
+        if (event) {
+            if (event.args) {
+                if (event.type == 'toggle') {
+                    return;
+                } else if (event.type == 'click') {
+                  console.log('chartEvent, data=',event.elementIndex);
+                } else if (event.type == 'mouseleave') {
+                  this.marker.setVisible(false);
+                }
+            } else if (event.type == 'mouseleave') {
+                  this.marker.setVisible(false);
+            }
+        }
   }
 
   @HostListener('document:mousemove', ['$event'])
@@ -441,6 +586,10 @@ export class Gps {
   speed: number;
 }
 
+export class Heartrate {
+  hr_value: number;
+}
+
 export class Activity {
   time: string;
   distance: number;
@@ -455,6 +604,7 @@ export class Workout {
   loaded : boolean = false;
   lap: Lap[];
   gpsCoord: Gps[];
+  heartrate: Heartrate[];
   constructor() {}
 }
 

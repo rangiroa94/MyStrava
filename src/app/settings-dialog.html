@@ -1,0 +1,13 @@
+<h1 mat-dialog-title>Settings</h1>
+<div mat-dialog-content>
+  <section class="checkButtons">
+  	<!--
+      <mat-checkbox class="example-margin" [(ngModel)]="data.showLapss">Checked</mat-checkbox>
+      <mat-checkbox class="example-margin" [(ngModel)]="data.showTrends">Indeterminate</mat-checkbox>
+    -->
+    </section>
+</div>
+<div mat-dialog-actions>
+  <button mat-button (click)="onNoClick()">No Thanks</button>
+  <button mat-button [mat-dialog-close]="data.showTrends" cdkFocusInitial>Ok</button>
+</div>

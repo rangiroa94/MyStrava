@@ -5,18 +5,21 @@ import { FormsModule } from '@angular/forms';
 import { MatTabsModule, MatTableModule, MatButtonModule, 
 	MatIconModule, MatDialogModule, MatCheckboxModule } from '@angular/material';
 import { AppComponent } from './app.component';
-import { AgmCoreModule } from '@agm/core';
-import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
+import { AgmCoreModule, GoogleMapsAPIWrapper } from '@agm/core';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { TableComponent } from './table/table.component';
 import { Workout, Lap, settingsDialog } from './app.component';
-import {WorkoutService} from './workout.service';
+import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
+
+import { WorkoutService } from './workout.service';
 
 @NgModule({
   declarations: [
     AppComponent, 
     settingsDialog,
-    TableComponent
+    TableComponent,
+    jqxChartComponent
   ],
   imports: [
     BrowserModule,
@@ -32,7 +35,7 @@ import {WorkoutService} from './workout.service';
 	BrowserAnimationsModule,
 	HttpClientModule
   ],
-  providers: [],
+  providers: [GoogleMapsAPIWrapper],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

@@ -1,4 +1,4 @@
-from .models import Login, Activity, Workout, User, Lap, GpsCoord
+from .models import Login, Activity, Workout, User, Lap, GpsCoord, HeartRate, Speed, Elevation
 from rest_framework import serializers
 from strava2.stravaModel import gpsCoord
 
@@ -22,12 +22,25 @@ class gpsCoordSerializer(serializers.Serializer):
     gps_lat = serializers.FloatField()
     gps_long = serializers.FloatField()
     gps_time = serializers.IntegerField()
+    
+class HrSerializer(serializers.Serializer):
+    hr_value = serializers.FloatField()
+        
+class SpeedSerializer(serializers.Serializer):
+    speed_value = serializers.FloatField()
+        
+class ElevationSerializer(serializers.Serializer):
+    elevation_value = serializers.FloatField()
         
 class WorkoutSerializer(serializers.ModelSerializer):
     act = ActivitySerializer(many=True)
     laps = LapSerializer(many=True)
     gps = gpsCoordSerializer(many=True)
+    heartrate = HrSerializer(many=True)
+    speed = SpeedSerializer(many=True)
+    elevation = ElevationSerializer(many=True)
+    
     class Meta:
         model = Workout
-        fields = ('actId', 'act', 'name','laps', 'gps')
+        fields = ('actId', 'act', 'name','laps', 'gps', 'heartrate', 'speed', 'elevation')
         

@@ -63,7 +63,28 @@ class GpsCoord(models.Model):
     workout = models.ForeignKey(Workout, related_name='gps', on_delete=models.PROTECT)
     def __str__(self):              # __unicode__ on Python 2
         return self.workout.name
+        
+class HeartRate(models.Model):
+    hr_index = models.IntegerField(default=0)
+    hr_value = models.FloatField(default=0)
+    workout = models.ForeignKey(Workout, related_name='heartrate', on_delete=models.PROTECT)
+    def __str__(self):              # __unicode__ on Python 2
+        return self.workout.name
+        
+class Speed(models.Model):
+    speed_index = models.IntegerField(default=0)
+    speed_value = models.FloatField(default=0)
+    workout = models.ForeignKey(Workout, related_name='speed', on_delete=models.PROTECT)
+    def __str__(self):              # __unicode__ on Python 2
+        return self.workout.name
 
+class Elevation(models.Model):
+    elevation_index = models.IntegerField(default=0)
+    elevation_value = models.FloatField(default=0)
+    workout = models.ForeignKey(Workout, related_name='elevation', on_delete=models.PROTECT)
+    def __str__(self):              # __unicode__ on Python 2
+        return self.workout.name
+        
 class User(models.Model):
     auth = models.BooleanField(default=False)
     workout = models.ForeignKey(Workout, on_delete=models.PROTECT)
