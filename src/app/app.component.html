@@ -98,6 +98,15 @@
       position: absolute;
     }
 
+  #chartToolTip {
+    margin: 0px 0px 0px 0px;
+    float: left;
+   } 
+  .jqx-tooltip-main, .jqx-tooltip-text {
+    background-color: #e7ea12;
+   }
+
+
 </style>
 
 <div id="wrapper" fxLayout="column">
@@ -175,23 +184,30 @@
                    (mousedown)='winTrends.onWindowPress($event,1)'
                    (mousemove)='winTrends.onWindowDrag($event,1)'
                    class='win'>
+ 
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.topLeftResize)' id='win-top-left-resize' class='win-corner-resize'></div>    
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.topRightResize)' id='win-top-right-resize' class='win-corner-resize'></div>    
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize'></div>    
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize'></div> 
 
+        <jqxTooltip id="chartToolTip" theme='shinyblack'
+                [position]="'top-left'" [name]="'ToolTip'"
+                [content]="toolTipTrends">
+
           <jqxChart #myChart *ngIf="done"
-            (onClick)="chartEvent($event)" (onToggle)="chartEvent($event)"
-            (mouseleave)="chartEvent($event)" (mouseenter)="chartEvent($event)" 
+            (click)="onChartEvent($event)" (onToggle)="onChartEvent($event)"
+            (mouseleave)="onChartEvent($event)" (mouseenter)="onChartEvent($event)" 
               [width]="winTrends.width" [height]="winTrends.height"
               [title]="'Trends'"
-              [description]="'whole workout'"
+              [description]="''"
               [showLegend]="true" [padding]="padding"
               [enableCrosshairs]="true" 
-              [crosshairsDashStyle]="'1,2'" [crosshairsLineWidth]="'3'" [crosshairsColor]="'#888888'" 
+              [crosshairsDashStyle]="'1,0'" [crosshairsLineWidth]="'3'" [crosshairsColor]="'#888888'" 
               [titlePadding]="titlePadding" [source]="hrData" [xAxis]="xAxis"
-              [seriesGroups]="seriesGroups" [colorScheme]="'scheme05'">
+              [seriesGroups]="seriesGroups" [colorScheme]="'scheme01'"
+              [drawBefore]="draw">
           </jqxChart>
+        </jqxTooltip>
    </div>
    <div *ngIf="lapInfos.show"
           [style.top.px]='winInfos.y'

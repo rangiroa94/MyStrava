@@ -32,6 +32,7 @@ export interface DialogData {
 })
 
 export class AppComponent implements AfterViewInit {
+  @ViewChild('myChart') myChart: jqxChartComponent;
   title = 'MyStrava';
   /* url : string = 'http://fakarava94.no-ip.org:3000/workout/'; */
   url: string = '/strava2/workoutDetail/';
@@ -76,82 +77,30 @@ export class AppComponent implements AfterViewInit {
   winInfos: Window = new Window(this);
   winSettings: Window = new Window(this);
 
+  // Charts
   marker: any;
   map: any;
-
   hrData: Array<number> = new Array<number>();
   hrIdx:  Array<number> = new Array<number>();
   elevationData: Array<number> = new Array<number>();
+  speedData: Array<number> = new Array<number>();
+  toolTipTrends: string;
+  splitBegin: number = -1;
+  splitEnd: number;
+  currentIndex: number;
+  bands = [];
+  recessions = [];
+  currentRecession: number=-1;
+  currentX: number=-1;
+  saveCurrentX: number;
+  padding: any;
+  titlePadding: any;
+  xAxis: any;
+  seriesGroups: any[];
+  render: any;
+  rect: any;
+  onChartArea: boolean = false;
 
-  padding: any = { left: 5, top: 5, right: 15, bottom: 5 };
-  titlePadding: any = { left: 0, top: 0, right: 0, bottom: 10 };
-  xAxis: any =
-  {
-      valuesOnTicks: true,
-      labels:
-        {
-            formatFunction: (value: any): string => {
-                return value;
-            },
-            angle: 0,
-            horizontalAlignment: 'right'
-        },
-      tickMarks: { visible: true }
-  };
-
-  seriesGroups: any[] =
-  [
-      {
-          type: 'stepline',
-          source: this.hrData,
-          toolTipFormatFunction: (value: any, itemIndex: any, serie: any, group: any, categoryValue: any, categoryAxis: any) => {
-              let dataItem = this.hrData[itemIndex];
-              return '<DIV style="text-align:left"><b>Index:</b> ' +
-                  itemIndex + '<br /><b>HR:</b> ' +
-                  value + '<br /></DIV>';
-          },
-          valueAxis:
-          {
-              title: { text: 'HeartRate<br>' },
-              flip: false,
-              labels: { horizontalAlignment: 'right' }
-          },
-          series:
-          [
-              { displayText: 'HeartRate', lineWidth: 2, lineColor: '#ff1a1a' }
-          ]
-      },
-      {
-          type: 'area',
-          source: this.elevationData,
-          toolTipFormatFunction: (value: any, itemIndex: any, serie: any, 
-            group: any, categoryValue: any, categoryAxis: any) => {
-              let dataItem = this.elevationData[itemIndex];
-              let pos = {
-                      lat: this.w1.gpsCoord[itemIndex].gps_lat,
-                      lng: this.w1.gpsCoord[itemIndex].gps_long
-                    }
-              console.log('marker: ', pos, this.marker);
-              this.marker.setVisible(true);
-              this.marker.setPosition(pos);
-              return '<DIV style="text-align:left"><b>Index:</b> ' +
-                  itemIndex + '<br /><b>HR:</b> ' +
-                  value + '<br /></DIV>';
-          },
-          valueAxis:
-          {
-              title: { text: 'Altitude<br>' },
-              flip: false,
-              labels: { horizontalAlignment: 'right' }
-          },
-          series:
-          [
-              { displayText: 'Altitude', lineWidth: 1, lineColor: '#d7d5d5', 
-              opacity: 0.3  }
-          ]
-      }
-  ];
- 
   w1: Workout;
 
   @ViewChild('AgmMap') agmMap: AgmMap;
@@ -183,10 +132,6 @@ export class AppComponent implements AfterViewInit {
 
     this.getWorkout();
   }
-
-  ngOnInit(){
-      
-    }
           
   public getWorkout() {
     
@@ -269,6 +214,10 @@ export class AppComponent implements AfterViewInit {
       w['elevation'].forEach(item => {
         this.elevationData.push(Math.round(item.elevation_value*10)/10);
       });
+      k = 0;
+      w['speed'].forEach(item => {
+        this.speedData.push(Math.round(item.speed_value*360)/100);
+      });
 
       let j:number;
       let idx = 0;
@@ -290,7 +239,7 @@ export class AppComponent implements AfterViewInit {
             let mm:number = Math.trunc(computeLapTime/60)-hh*60;
             let ss:number = computeLapTime-hh*3600-mm*60;
             this.w1.lap[j].lap_time = String(hh).padStart(2, '0') + ':' +
-              String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');;
+              String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
         } else {
             let t2: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
             splitTime += t2.getTime()/1000
@@ -311,6 +260,8 @@ export class AppComponent implements AfterViewInit {
       console.log('lapSize=', this.lapSize);
       this.done = 1;
       this.w1.loaded = true;
+
+      this.displayTrends();
 
     });
 
@@ -393,6 +344,184 @@ export class AppComponent implements AfterViewInit {
     this.marker.setVisible(false);
 
   }
+
+  displayTrends() {
+
+    this.padding = { left: 5, top: 5, right: 15, bottom: 5 };
+    this.titlePadding = { left: 0, top: 0, right: 0, bottom: 10 };
+    this.xAxis =
+    {
+        valuesOnTicks: true,
+        labels:
+          {
+              formatFunction: (value: any): string => {
+                  let hh:number = Math.trunc(value/3600);
+                  let mm:number = Math.trunc(value/60)-hh*60;
+                  let ss:number = value-hh*3600-mm*60;
+                  value = String(hh).padStart(2, '0') + ':' +
+                    String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+                  return value;
+              },
+              angle: 0,
+              horizontalAlignment: 'right'
+          },
+        tickMarks: { visible: true }
+    };
+
+    this.seriesGroups =
+    [
+      {
+            type: 'stepline',
+            source: this.speedData,
+            showToolTips: true,
+            toolTipFormatFunction: (value: any, itemIndex: any, serie: any, group: any, categoryValue: any, categoryAxis: any) => {
+                let dataItem = this.hrData[itemIndex];
+                let pos = {
+                        lat: this.w1.gpsCoord[itemIndex].gps_lat,
+                        lng: this.w1.gpsCoord[itemIndex].gps_long
+                      }
+                // console.log('marker: ', pos, this.marker);
+                this.marker.setVisible(true);
+                this.marker.setPosition(pos);
+                this.toolTipTrends = this.getToolTip(itemIndex);
+                return '';
+             },
+            valueAxis:
+            {
+                title: { text: 'Speed<br>' },
+                flip: false,
+                labels: { horizontalAlignment: 'right' },
+                bands: [],
+            },
+            series:
+            [
+                { displayText: 'Speed', lineWidth: 2 }
+            ]
+        },
+        {
+            type: 'stepline',
+            source: this.hrData,
+            showToolTips: true,
+            toolTipFormatFunction: (value: any, itemIndex: any, serie: any, group: any, categoryValue: any, categoryAxis: any) => {
+                let dataItem = this.hrData[itemIndex];
+                let pos = {
+                        lat: this.w1.gpsCoord[itemIndex].gps_lat,
+                        lng: this.w1.gpsCoord[itemIndex].gps_long
+                      }
+                // console.log('marker: ', pos, this.marker);
+                this.marker.setVisible(true);
+                this.marker.setPosition(pos);
+                this.toolTipTrends = this.getToolTip(itemIndex);
+                return '';
+            },
+            valueAxis:
+            {
+                title: { text: 'HeartRate<br>' },
+                flip: false,
+                labels: { horizontalAlignment: 'right' },
+                bands: [],
+            },
+            series:
+            [
+                { displayText: 'HeartRate', lineWidth: 2 }
+            ]
+        },
+        {
+            type: 'area',
+            source: this.elevationData,
+            showToolTips: true,
+            toolTipFormatFunction: (value: any, itemIndex: any, serie: any, 
+              group: any, categoryValue: any, categoryAxis: any) => {
+                let dataItem = this.elevationData[itemIndex];
+                let pos = {
+                        lat: this.w1.gpsCoord[itemIndex].gps_lat,
+                        lng: this.w1.gpsCoord[itemIndex].gps_long
+                      }
+                // console.log('marker: ', pos, this.marker);
+                this.marker.setVisible(true);
+                this.marker.setPosition(pos);
+                this.toolTipTrends = this.getToolTip(itemIndex);
+                return '';
+
+            },
+            valueAxis:
+            {
+                title: { text: 'Altitude<br>' },
+                flip: false,
+                position: 'right',
+                labels: { horizontalAlignment: 'right' },
+                bands: [],
+            },
+            series:
+            [
+                { displayText: 'Altitude', lineWidth: 1, 
+                opacity: 0.3  }
+            ]
+        }
+    ];
+
+  }
+
+  getToolTip( index: number ) {
+    this.onChartArea = true;
+    this.currentIndex = index;
+    let coord = this.myChart.getItemCoord(0,0,index);
+    this.currentX = coord['x'];
+    //console.log('coord=',coord);
+ 
+    if (this.splitBegin >= 0 ) {
+      let split: any;
+      split = { from: this.splitBegin, to: this.currentX}
+      this.recessions[this.currentRecession] = split;
+      this.setCurrentBand();
+    }
+    return '<DIV style="text-align:left"><b>Index:</b> ' +
+                  index + '<br /><b>HR:</b> ' +
+                  this.hrData[index] + '<br /><b>Speed:</b> ' +
+                  this.speedData[index] + '<br /><b>Altitude:</b> ' +
+                  this.elevationData[index] + '<br /></DIV>';
+  }
+
+  showBands () {
+    this.bands = [];
+    for (let i = 0; i < this.recessions.length; i++) {
+        // this.bands.push({ minValue: this.recessions[i].from, maxValue: this.recessions[i].to, 
+        //  fillColor: 'blue', opacity: 0.2 });
+        
+        this.render.rect(this.recessions[i].from, 
+          this.myChart.getValueAxisRect(0)['y'], 
+          (this.recessions[i].to-this.recessions[i].from), 
+          this.myChart.getValueAxisRect(0)['height'], 
+          { fill: 'yellow',  opacity: 0.2});
+    }
+    console.log('recessions=',this.recessions);
+
+    // this.myChart.attrXAxis.bands = this.bands; 
+    // this.myChart.refresh();
+
+  }
+
+  setCurrentBand () {
+    
+    let startX: number; 
+    if ( this.saveCurrentX < 0)  {
+      startX = this.splitBegin;
+    } else {
+      startX = this.saveCurrentX;
+    }
+    this.render.rect(startX, 
+      this.myChart.getValueAxisRect(0)['y'], 
+      (this.currentX-startX), 
+      this.myChart.getValueAxisRect(0)['height'], 
+      { fill: 'yellow',  opacity: 0.2});
+
+    this.saveCurrentX = this.currentX;
+  }
+
+  draw = (renderer: any, rect: any): void => {
+    this.render = renderer;
+    this.rect = rect;
+  };
 
   ngAfterViewInit() {
     console.log("ngAfterViewInit");
@@ -491,20 +620,31 @@ export class AppComponent implements AfterViewInit {
     this.showSettings = !this.showSettings;
   }
 
-  chartEvent(event: any): any {
+  onChartEvent(event: any): any {
         let eventData;
-        console.log('chartEvent: ',event.type, 'data=',event.elementIndex);
+        // console.log('chartEvent: ',event.type);
         if (event) {
             if (event.args) {
                 if (event.type == 'toggle') {
                     return;
-                } else if (event.type == 'click') {
-                  console.log('chartEvent, data=',event.elementIndex);
-                } else if (event.type == 'mouseleave') {
-                  this.marker.setVisible(false);
                 }
             } else if (event.type == 'mouseleave') {
                   this.marker.setVisible(false);
+                  this.splitBegin = -1;
+                  this.saveCurrentX = -1;
+                  this.onChartArea = false;
+             } else if (event.type == 'click') {
+                  if (this.splitBegin <0 ) {
+                    this.splitBegin = this.currentX;
+                    this.currentRecession = this.bands.length;
+                    console.log ('splitBegin=',this.splitBegin);
+                  } else {
+                    let split: any;
+                    split = { from: this.splitBegin, to: this.currentX}
+                    this.recessions.push(split);
+                    this.splitBegin = -1;
+                    console.log ('recessions=',this.recessions);
+                  }
             }
         }
   }
@@ -537,6 +677,7 @@ export class AppComponent implements AfterViewInit {
   onCornerRelease(event: MouseEvent) {
     this.selectedWindow.draggingWindow = false;
     this.selectedWindow.draggingCorner = false;
+    this.showBands();
   }
 
   @HostListener('window:resize', ['$event'])
@@ -631,11 +772,13 @@ export class Window {
   }
 
   onWindowPress(event: MouseEvent, id: number) {
-    this.app.selectedWindow = this;
-    this.draggingWindow = true;
-    this.px = event.clientX;
-    this.py = event.clientY;
-    console.log('Press winId=', id);
+    if (!this.app.onChartArea) {
+      this.app.selectedWindow = this;
+      this.draggingWindow = true;
+      this.px = event.clientX;
+      this.py = event.clientY;
+      console.log('Press winId=', id);
+    }
   }
 
   onWindowDrag(event: MouseEvent, id: number) {

@@ -11,6 +11,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { TableComponent } from './table/table.component';
 import { Workout, Lap, settingsDialog } from './app.component';
 import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
+import { jqxTooltipComponent } from "jqwidgets-scripts/jqwidgets-ts/angular_jqxtooltip";
 
 import { WorkoutService } from './workout.service';
 
@@ -19,7 +20,8 @@ import { WorkoutService } from './workout.service';
     AppComponent, 
     settingsDialog,
     TableComponent,
-    jqxChartComponent
+    jqxChartComponent,
+    jqxTooltipComponent
   ],
   imports: [
     BrowserModule,

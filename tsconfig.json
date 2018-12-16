@@ -21,7 +21,8 @@
 	],
 	"files": [
           "src/app/app.module.ts",
-	  "node_modules/jqwidgets-scripts/jqwidgets-ts/angular_jqxchart.ts"
+	  "node_modules/jqwidgets-scripts/jqwidgets-ts/angular_jqxchart.ts",
+    "node_modules/jqwidgets-scripts/jqwidgets-ts/angular_jqxtooltip.ts"
 	]
 }
 
