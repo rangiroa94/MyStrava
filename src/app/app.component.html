@@ -54,6 +54,8 @@
   }
   #infos { position: absolute; }
 
+  #tableSelect  {float: center;}
+
   .stretch {
     width: 100%;
     display: inline-block;
@@ -70,11 +72,29 @@
       padding: 5px;
       line-height: 30px;
   }
-  .win-corner-resize {
+  .win-corner-resize-topRight {
       position: absolute;
       width: 10px;
       height: 10px;
-      cursor: all-scroll;
+      cursor: nesw-resize;
+  }
+  .win-corner-resize-topLeft {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      cursor: nwse-resize;
+  }
+  .win-corner-resize-bottomRight {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      cursor: nwse-resize;
+  }
+  .win-corner-resize-bottomLeft {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      cursor: nesw-resize;
   }
   #win-top-left-resize { top: 0px; left: 0px; }
   #win-top-right-resize { top: 0px; right: 0px; }
@@ -126,10 +146,9 @@
             (markerClick)="clickedMarker(m.label, i)"
             [latitude]="w1.gpsCoord[m.lap_start].gps_lat"
             [longitude]="w1.gpsCoord[m.lap_start].gps_long"
-            [label]="(m.lap_index-1).toString()">
+            [label]="(!tableType) ? (m.lap_index-1).toString() : (m.lap_index).toString()">
             <agm-info-window>
-              <strong *ngIf="i < 1"> Dist: 0 m<br>Time: 00:00:00<br></strong>
-              <strong *ngIf="(i >= 1) && (i < lapSize)"> Dist: {{w1.lap[i-1].lap_distance}} m<br>Time: {{w1.lap[i-1].lap_time}}<br></strong>
+              <strong *ngIf="(i >= 0) && (i < lapSize)"> Dist: {{clickLapDistance}} m<br>Time: {{clickLapTime}}<br></strong>
             </agm-info-window>
           </agm-marker>
           <agm-marker *ngIf="w1.lap[lapSize-1].lap_end_index"
@@ -166,14 +185,25 @@
                    (mousedown)='winLap.onWindowPress($event,1)'
                    (mousemove)='winLap.onWindowDrag($event,1)'
                    class='win'>
-        <div (mousedown)='winLap.onCornerClick($event, winLap.topLeftResize)' id='win-top-left-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winLap.onCornerClick($event, winLap.topRightResize)' id='win-top-right-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winLap.onCornerClick($event, winLap.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winLap.onCornerClick($event, winLap.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize'></div> 
-        <app-table *ngIf="w1" [wkt]="w1" 
-              (lapSelected)="onLapSelected($event)"
-              (lapInfos)="onLapInfos($event)">
-        </app-table> 
+        <div (mousedown)='winLap.onCornerClick($event, winLap.topLeftResize)' id='win-top-left-resize' class='win-corner-resize-topLeft'></div>    
+        <div (mousedown)='winLap.onCornerClick($event, winLap.topRightResize)' id='win-top-right-resize' class='win-corner-resize-topRight'></div>    
+        <div (mousedown)='winLap.onCornerClick($event, winLap.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize-bottomLeft'></div>    
+        <div (mousedown)='winLap.onCornerClick($event, winLap.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize-bottomRight'></div> 
+        <div class="projected-content-wrapper" (cdkObserveContent)="tabContentChanged()">
+            <mat-form-field id='tableSelect'>
+              <mat-select placeholder="Lap Table" [(ngModel)]="selectedTable"
+              (selectionChange)="onTableSelect($event.value)">
+                <mat-option *ngFor="let table of tables" [value]="table.value">
+                  {{table.viewValue}}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <app-table *ngIf="w1" [wkt]="w1" 
+                  (lapSelected)="onLapSelected($event)"
+                  (lapInfos)="onLapInfos($event)"
+                  (initTable)="updateWatchLapTable($event)">
+            </app-table> 
+        </div>
 
    </div> 
    <div id='trends' *ngIf="showTrends"
@@ -185,21 +215,23 @@
                    (mousemove)='winTrends.onWindowDrag($event,1)'
                    class='win'>
  
-        <div (mousedown)='winTrends.onCornerClick($event, winTrends.topLeftResize)' id='win-top-left-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winTrends.onCornerClick($event, winTrends.topRightResize)' id='win-top-right-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize'></div> 
+        <div (mousedown)='winTrends.onCornerClick($event, winTrends.topLeftResize)' id='win-top-left-resize' class='win-corner-resize-topLeft'></div>    
+        <div (mousedown)='winTrends.onCornerClick($event, winTrends.topRightResize)' id='win-top-right-resize' class='win-corner-resize-topRight'></div>    
+        <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize-bottomLeft'></div>    
+        <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize-bottomRight'></div> 
 
         <jqxTooltip id="chartToolTip" theme='shinyblack'
                 [position]="'top-left'" [name]="'ToolTip'"
                 [content]="toolTipTrends">
 
           <jqxChart #myChart *ngIf="done"
-            (click)="onChartEvent($event)" (onToggle)="onChartEvent($event)"
+            (mousedown)="onChartEvent($event)" (onToggle)="onChartEvent($event)"
             (mouseleave)="onChartEvent($event)" (mouseenter)="onChartEvent($event)" 
+            (mouseup)="onChartEvent($event)"
               [width]="winTrends.width" [height]="winTrends.height"
               [title]="'Trends'"
-              [description]="''"
+              [description]="''" 
+              [toolTipShowDelay]="'250'" [toolTipHideDelay]="'2000'" 
               [showLegend]="true" [padding]="padding"
               [enableCrosshairs]="true" 
               [crosshairsDashStyle]="'1,0'" [crosshairsLineWidth]="'3'" [crosshairsColor]="'#888888'" 
@@ -217,10 +249,10 @@
           (mousedown)='winInfos.onWindowPress($event,1)'
           (mousemove)='winInfos.onWindowDrag($event,1)'
           class='win'>
-        <div (mousedown)='winInfos.onCornerClick($event, winInfos.topLeftResize)' id='win-top-left-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winInfos.onCornerClick($event, winInfos.topRightResize)' id='win-top-right-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winInfos.onCornerClick($event, winInfos.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize'></div>    
-        <div (mousedown)='winInfos.onCornerClick($event, winInfos.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize'></div> 
+        <div (mousedown)='winInfos.onCornerClick($event, winInfos.topLeftResize)' id='win-top-left-resize' class=''></div>    
+        <div (mousedown)='winInfos.onCornerClick($event, winInfos.topRightResize)' id='win-top-right-resize' class=''></div>    
+        <div (mousedown)='winInfos.onCornerClick($event, winInfos.bottomLeftResize)' id='win-bottom-left-resize' class=''></div>    
+        <div (mousedown)='winInfos.onCornerClick($event, winInfos.bottomRightResize)' id='win-bottom-right-resize' class=''></div> 
       <div id='infos' >
         <table mat-table [dataSource]="infosData" class="mat-elevation-z8">
           <ng-container matColumnDef="title">

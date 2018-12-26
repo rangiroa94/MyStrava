@@ -1,10 +1,12 @@
-import { Component, EventEmitter, Input, Output, OnInit, ChangeDetectorRef  } from '@angular/core';
+import { Component, EventEmitter, OnChanges, SimpleChanges, Input, Output, 
+  OnInit, ChangeDetectorRef, AfterContentInit  } from '@angular/core';
 import { DataSource } from '@angular/cdk/collections';
 import { Observable, of } from 'rxjs';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { Workout, Lap} from '../app.component';
 import { MatTabChangeEvent } from '@angular/material';
 import { DatePipe } from '@angular/common';
+import { WorkoutService } from '../workout.service';
 
 @Component({
   selector: 'app-table',
@@ -18,10 +20,11 @@ import { DatePipe } from '@angular/common';
     ]),
   ],
 })
-export class TableComponent implements OnInit {
+export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   @Input() wkt: Workout;
   @Output() lapSelected: EventEmitter<number>  = new EventEmitter<number>();
   @Output() lapInfos: EventEmitter<infos>  = new EventEmitter<infos>();
+  @Output() initTable: EventEmitter<number>  = new EventEmitter<number>();
   nameTab: String = 'Laps';
   displayedColumns = ['lap_index', 'lap_distance', 'lap_time'];
   dataSource: lapDataSource;
@@ -35,16 +38,52 @@ export class TableComponent implements OnInit {
   selectedRows = new Array<boolean>();
   sumDist: number=0;
   infosLap: infos = new infos();
+  srv: WorkoutService;
 
-  constructor( private changeDetectorRefs: ChangeDetectorRef ) { 
+  constructor( private changeDetectorRefs: ChangeDetectorRef, 
+                private wktService: WorkoutService ) { 
     console.log('TableComponent');
+    this.srv = wktService;
+
   }
+
   ngOnInit() {
-    console.log('wkt=',this.wkt);
-    this.dataSource = new lapDataSource(this.wkt);
+    console.log('wkt.lap=',this.wkt.lap);
+    this.srv.workout$.subscribe(
+      w => {
+        console.log('Subscribe, reception wkr:', w);
+      });
+    // this.srv.lapsSource.next(this.wkt.lap);
+    this.dataSource = new lapDataSource(this.wkt, this.srv);
     for(let j:number = 0;j<this.wkt.lap.length;j++) {
       this.selectedRows[j] = false;
     }
+    this.timer = setTimeout(() => {
+      this.initTable.emit(1);
+    }, 2000);
+  }
+
+  ngAfterContentInit() {
+    console.log ('>>> ngAfterContentInit');
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    console.log ('>>> ngOnChanges');
+    /*
+    for (let propName in changes) {  
+      let change = changes[propName];
+      let curVal  = JSON.stringify(change.currentValue);
+      let prevVal = JSON.stringify(change.previousValue);
+      console.log('curVal=',curVal);
+      console.log('prevVal=',prevVal);
+      // this.srv.pushWorkout(curVal['laps']);
+    }
+    */
+
+  }
+
+  tabContentChanged () {
+    console.log ('>>> tabContentChanged');
   }
 
   isExpansionDetailRow = (i: number, row: Object) => row.hasOwnProperty('detailRow');
@@ -146,7 +185,7 @@ export class TableComponent implements OnInit {
   }
 
   refresh () {
-    this.changeDetectorRefs.detectChanges();
+     // this.changeDetectorRefs.detectChanges();
   }
 
   onLinkClick(event: MatTabChangeEvent) {
@@ -166,15 +205,20 @@ export class TableComponent implements OnInit {
  */
 export class lapDataSource extends DataSource<Lap> {
   /** Connect function called by the table to retrieve one stream containing the data to render. */
-  constructor(private workout: Workout) {
+  srv: WorkoutService;
+  constructor(private workout: Workout, srv: WorkoutService) {
     super();
+    this.srv = srv;
     console.log('lapDataSource constructor');
   }
   connect(): Observable<Lap[]> {
+    /*
     const rows = [];
     this.workout.lap.forEach(element => {rows.push(element, { detailRow: true, element })});
     console.log('lapDataSource, rows=: ',rows);
     return of(rows);
+    */
+    return this.srv.lapsSource;
   }
 
   disconnect() { }

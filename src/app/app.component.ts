@@ -1,5 +1,5 @@
 import { Component, ElementRef, HostListener, ViewChild, OnInit, AfterViewInit, 
-  OnChanges, SimpleChanges, Input, Inject } from '@angular/core';
+  OnChanges, SimpleChanges, ChangeDetectorRef, Input, Output, Inject, EventEmitter } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
@@ -10,6 +10,7 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 import { Chart } from 'chart.js';
 import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
+import { WorkoutService } from './workout.service';
 
 declare var google: any;
 
@@ -51,6 +52,7 @@ export class AppComponent implements AfterViewInit {
   draggingWindow: boolean;
   resizer: Function;
   done: number;
+  startHour: number;
   selectedWindow: Window;
   newInnerHeight: number;
   newInnerWidth: number;
@@ -77,6 +79,14 @@ export class AppComponent implements AfterViewInit {
   winInfos: Window = new Window(this);
   winSettings: Window = new Window(this);
 
+  tableType: number = 0;  //0: WatchLap, 1: customLap, 2: splitLap
+  tables: LapTable[] = [
+    {value: 0, viewValue: 'Manual laps'},
+    {value: 1, viewValue: 'Custom Laps'},
+    {value: 2, viewValue: 'Split Laps'}
+  ];
+  selectedTable: number=0;
+
   // Charts
   marker: any;
   map: any;
@@ -84,31 +94,42 @@ export class AppComponent implements AfterViewInit {
   hrIdx:  Array<number> = new Array<number>();
   elevationData: Array<number> = new Array<number>();
   speedData: Array<number> = new Array<number>();
+  distanceData: Array<number> = new Array<number>();
   toolTipTrends: string;
   splitBegin: number = -1;
+  splitBeginIndex: number;
   splitEnd: number;
   currentIndex: number;
   bands = [];
   recessions = [];
+  redrawBands: boolean = false;
   currentRecession: number=-1;
   currentX: number=-1;
-  saveCurrentX: number;
+  saveCurrentX: number=-1;
   padding: any;
   titlePadding: any;
   xAxis: any;
   seriesGroups: any[];
-  render: any;
+  renderer: any;
   rect: any;
+  currentRect: any;
   onChartArea: boolean = false;
+  timer: any;
+  Ymin:number = 0;
+  Ymax:number = 0;
 
   w1: Workout;
+  srv: WorkoutService;
 
   @ViewChild('AgmMap') agmMap: AgmMap;
 
   constructor(private http: HttpClient, private eltRef: ElementRef, 
     private mapsAPILoader: MapsAPILoader, public dialog: MatDialog,
-    private gmapsApi: GoogleMapsAPIWrapper) {
+    private gmapsApi: GoogleMapsAPIWrapper, 
+    private changeDetectorRefs: ChangeDetectorRef,
+    private wktService: WorkoutService) {
 
+    this.srv = wktService;
     this.newInnerHeight = window.innerHeight;
     this.newInnerWidth = window.innerWidth;
 
@@ -158,6 +179,7 @@ export class AppComponent implements AfterViewInit {
 
       let d: Date = new Date(w.act[0]['strTime']);
       console.log('start_date=',d, d.getTime()/1000);
+      this.startHour = d.getHours()*3600+d.getMinutes()*60+d.getSeconds();
 
       this.w1.gpsCoord = new Array<Gps>();
       w['gps'].forEach(item => {
@@ -182,7 +204,7 @@ export class AppComponent implements AfterViewInit {
           lap_index: item.lap_index,
           lap_start_index: item.lap_start_index,
           lap_end_index: item.lap_end_index,
-          lap_distance: item.lap_distance,
+          lap_distance: Math.round(item.lap_distance),
           lap_time: item.lap_time,
           lap_start_date: item.lap_start_date,
           lap_cumulatedTime: "00:00:00",
@@ -214,50 +236,18 @@ export class AppComponent implements AfterViewInit {
       w['elevation'].forEach(item => {
         this.elevationData.push(Math.round(item.elevation_value*10)/10);
       });
-      k = 0;
       w['speed'].forEach(item => {
         this.speedData.push(Math.round(item.speed_value*360)/100);
       });
+      w['distance'].forEach(item => {
+        this.distanceData.push(Math.round(item.distance_value*10)/10);
+      });
 
-      let j:number;
-      let idx = 0;
-      let t: Date = new Date(this.w1.lap[0].lap_start_date);
-      let curTime:number=t.getTime()/1000;
-      let splitTime=0;
-      let computeLapTime=0;
-      for(j = 0;j<this.w1.lap.length;j++) {
-        // this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
-        // this.w1.lap[j].lap_end = Math.round(this.w1.lap[j].lap_end_index*this.ratio);
-        this.w1.lap[j].lap_start = idx;
-        // let t: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
-        if (j<this.w1.lap.length-1) {
-            let t2: Date = new Date(this.w1.lap[j+1].lap_start_date);
-            splitTime += t2.getTime()/1000 - curTime;
-            computeLapTime = t2.getTime()/1000 - curTime;
-            curTime = t2.getTime()/1000;
-            let hh:number = Math.trunc(computeLapTime/3600);
-            let mm:number = Math.trunc(computeLapTime/60)-hh*60;
-            let ss:number = computeLapTime-hh*3600-mm*60;
-            this.w1.lap[j].lap_time = String(hh).padStart(2, '0') + ':' +
-              String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
-        } else {
-            let t2: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
-            splitTime += t2.getTime()/1000
-        }
-        
-        console.log('lap ',j+1,'lap_time=',this.w1.lap[j].lap_time, 
-          'splitTime=',splitTime, 'idx=',this.binaryIndexOf(splitTime));
-        let hh:number = Math.trunc(splitTime/3600);
-        let mm:number = Math.trunc(splitTime/60)-hh*60;
-        let ss:number = splitTime-hh*3600-mm*60;
-        this.w1.lap[j].lap_cumulatedTime = String(hh).padStart(2, '0') + ':' +
-          String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
-        idx = this.binaryIndexOf(splitTime);
-        this.w1.lap[j].lap_end = idx;
-      }
+      this.computeWatchLapIndex(0, 1);
 
       console.log('w1=', this.w1);
       console.log('lapSize=', this.lapSize);
+
       this.done = 1;
       this.w1.loaded = true;
 
@@ -265,6 +255,86 @@ export class AppComponent implements AfterViewInit {
 
     });
 
+  }
+
+  computeWatchLapIndex ( startIdx: number, correction: number ) {
+    let j:number;
+    let idx = startIdx;
+    let t: Date = new Date(this.w1.lap[0].lap_start_date);
+    let curTime:number=t.getTime()/1000;
+    let splitTime=this.w1.gpsCoord[startIdx].gps_time;
+    let computeLapTime=0;
+    for(j = 0;j<this.w1.lap.length;j++) {
+      // this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
+      // this.w1.lap[j].lap_end = Math.round(this.w1.lap[j].lap_end_index*this.ratio);
+      this.w1.lap[j].lap_start = idx;
+      // let t: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
+      if (j<this.w1.lap.length-1) {
+          let t2: Date = new Date(this.w1.lap[j+1].lap_start_date);
+          splitTime += t2.getTime()/1000 - curTime;
+          computeLapTime = t2.getTime()/1000 - curTime;
+          curTime = t2.getTime()/1000;
+          let hh:number = Math.trunc(computeLapTime/3600);
+          let mm:number = Math.trunc(computeLapTime/60)-hh*60;
+          let ss:number = computeLapTime-hh*3600-mm*60;
+          this.w1.lap[j].lap_time = String(hh).padStart(2, '0') + ':' +
+            String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+      } else {
+          let t2: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
+          console.log ('init, t2=',t2);
+          splitTime += t2.getTime()/1000;
+      }
+      
+      console.log('lap ',j+1,'lap_time=',this.w1.lap[j].lap_time, 
+        'splitTime=',splitTime, 'idx=',this.binaryIndexOf(splitTime, correction));
+      let hh:number = Math.trunc(splitTime/3600);
+      let mm:number = Math.trunc(splitTime/60)-hh*60;
+      let ss:number = splitTime-hh*3600-mm*60;
+      this.w1.lap[j].lap_cumulatedTime = String(hh).padStart(2, '0') + ':' +
+        String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+      idx = this.binaryIndexOf(splitTime, correction);
+      this.w1.lap[j].lap_end = idx;
+    }
+  }
+
+  computeLapIndex ( startIdx: number, correction: number ) {
+    let j:number;
+    let idx = startIdx;
+    let t: Date = new Date(this.w1.lap[0].lap_start_date);
+    let curTime:number=t.getTime()/1000;
+    let splitTime=this.w1.gpsCoord[startIdx].gps_time;
+    let computeLapTime=0;
+    for(j = 0;j<this.w1.lap.length;j++) {
+      // this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
+      // this.w1.lap[j].lap_end = Math.round(this.w1.lap[j].lap_end_index*this.ratio);
+      this.w1.lap[j].lap_start = idx;
+      // let t: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
+      if (j<this.w1.lap.length-1) {
+          let t2: Date = new Date(this.w1.lap[j+1].lap_start_date);
+          splitTime += t2.getTime()/1000 - curTime;
+          computeLapTime = t2.getTime()/1000 - curTime;
+          curTime = t2.getTime()/1000;
+          let hh:number = Math.trunc(computeLapTime/3600);
+          let mm:number = Math.trunc(computeLapTime/60)-hh*60;
+          let ss:number = computeLapTime-hh*3600-mm*60;
+          this.w1.lap[j].lap_time = String(hh).padStart(2, '0') + ':' +
+            String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+      } else {
+          let t2: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
+          console.log ('init, t2=',t2);
+          splitTime += t2.getTime()/1000;
+      }
+      
+      console.log('lap ',j+1,'lap_time=',this.w1.lap[j].lap_time, 
+        'splitTime=',splitTime, 'idx=',this.binaryIndexOf(splitTime, correction));
+      let hh:number = Math.trunc(splitTime/3600);
+      let mm:number = Math.trunc(splitTime/60)-hh*60;
+      let ss:number = splitTime-hh*3600-mm*60;
+      this.w1.lap[j].lap_cumulatedTime = String(hh).padStart(2, '0') + ':' +
+        String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+      idx = this.binaryIndexOf(splitTime, correction);
+      this.w1.lap[j].lap_end = idx;
+    }
   }
 
   updateView () {
@@ -347,7 +417,7 @@ export class AppComponent implements AfterViewInit {
 
   displayTrends() {
 
-    this.padding = { left: 5, top: 5, right: 15, bottom: 5 };
+    this.padding = { left: 2, top: 2, right: 15, bottom: 5 };
     this.titlePadding = { left: 0, top: 0, right: 0, bottom: 10 };
     this.xAxis =
     {
@@ -467,15 +537,29 @@ export class AppComponent implements AfterViewInit {
     this.currentIndex = index;
     let coord = this.myChart.getItemCoord(0,0,index);
     this.currentX = coord['x'];
-    //console.log('coord=',coord);
- 
+    let averageBand: string='';
+    // console.log ('coords=',coord);
+    
     if (this.splitBegin >= 0 ) {
       let split: any;
       split = { from: this.splitBegin, to: this.currentX}
       this.recessions[this.currentRecession] = split;
       this.setCurrentBand();
+
+      let idx1 = this.convertAbstoIndex (this.splitBegin);
+      let idx2 = this.convertAbstoIndex (this.currentX);
+      let t = idx2 - idx1;
+      let hh:number = Math.trunc(t/3600);
+      let mm:number = Math.trunc(t/60)-hh*60;
+      let ss:number = t-hh*3600-mm*60;
+      let totaltime:string;
+      let averageTime = String(hh).padStart(2, '0') + ':' +
+        String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+      let dist:number = Math.round(this.distanceData[idx2] - this.distanceData[idx1]);
+
+      averageBand = '<b>Split: ' + averageTime + '<br />Distance: ' + dist +'</b><br />';
     }
-    return '<DIV style="text-align:left"><b>Index:</b> ' +
+    return '<DIV style="text-align:left">'+averageBand+'<b>Index:</b> ' +
                   index + '<br /><b>HR:</b> ' +
                   this.hrData[index] + '<br /><b>Speed:</b> ' +
                   this.speedData[index] + '<br /><b>Altitude:</b> ' +
@@ -484,59 +568,149 @@ export class AppComponent implements AfterViewInit {
 
   showBands () {
     this.bands = [];
-    for (let i = 0; i < this.recessions.length; i++) {
-        // this.bands.push({ minValue: this.recessions[i].from, maxValue: this.recessions[i].to, 
-        //  fillColor: 'blue', opacity: 0.2 });
-        
-        this.render.rect(this.recessions[i].from, 
-          this.myChart.getValueAxisRect(0)['y'], 
+    this.Ymin = 0;
+    this.Ymax = 0;
+    if (this.Ymin == 0) {
+      let idx:number = -1;
+      for (let i=0; i<this.seriesGroups.length; i++) {
+        if (typeof this.seriesGroups[i] !== 'undefined') {
+          idx = i;
+        }
+      }
+      if (idx>0) {
+        this.Ymin = this.myChart.getValueAxisRect(idx)['y'];
+        this.Ymax = <number>this.myChart.getValueAxisRect(idx)['height'];
+      }
+    }
+    for (let i = 0; i < this.recessions.length-1; i++) {
+        this.renderer.rect(this.recessions[i].from, 
+          this.Ymin, 
           (this.recessions[i].to-this.recessions[i].from), 
-          this.myChart.getValueAxisRect(0)['height'], 
+          this.Ymax, 
           { fill: 'yellow',  opacity: 0.2});
     }
-    console.log('recessions=',this.recessions);
-
-    // this.myChart.attrXAxis.bands = this.bands; 
-    // this.myChart.refresh();
+    console.log('showBands recessions=',this.recessions);
 
   }
 
   setCurrentBand () {
-    
     let startX: number; 
-    if ( this.saveCurrentX < 0)  {
+    console.log('setCurrentBand, currentX= ',this.currentX);
+    if ( this.saveCurrentX < 0 && this.splitBegin>=0 )  {
       startX = this.splitBegin;
+      console.log('setCurrentBand, first rect');
+      this.currentRect = this.renderer.rect(startX, 
+        this.myChart.getValueAxisRect(0)['y'], 
+        (this.currentX-startX), 
+        this.myChart.getValueAxisRect(0)['height'], 
+        { fill: 'yellow',  opacity: 0.2});
+
     } else {
       startX = this.saveCurrentX;
+      this.renderer.attr(this.currentRect, { width:  this.currentX-this.splitBegin});
     }
-    this.render.rect(startX, 
-      this.myChart.getValueAxisRect(0)['y'], 
-      (this.currentX-startX), 
-      this.myChart.getValueAxisRect(0)['height'], 
-      { fill: 'yellow',  opacity: 0.2});
-
     this.saveCurrentX = this.currentX;
   }
 
+  updateWatchLapTable (update: number) {
+    console.log('>>> updateWatchLapTable');
+    this.srv.lapsSource.next(this.w1.lap);
+  }
+
+  updateCustomLapTable () {
+    this.tableType = 1;
+    if (this.recessions.length<3) {
+      this.w1.watchLaps = Object.assign([], this.w1.lap);
+      console.log('watchLaps=',this.w1.watchLaps);
+    }
+    this.w1.lap = [];
+    let k = 1;
+    let beginTime: number = this.startHour;
+    for (let i = this.recessions.length-1; i >0 ; i--) {
+      let lapData = this.getLapInfos (i);
+      let l1: Lap = new Lap();
+      l1 = {
+        lap_index: k++,
+        lap_start_index: lapData['idx1'],
+        lap_end_index: 0,
+        lap_distance: lapData['dist'],
+        lap_time: lapData['strTime'],
+        lap_start_date: (beginTime+lapData['startTime']).toString(),
+        lap_cumulatedTime: "00:00:00",
+        lap_average_speed: 0,
+        lap_average_cadence: 0,
+        lap_pace_zone: 0,
+        lap_total_elevation_gain: 0,
+        lap_start: lapData['idx1'],
+        lap_end:lapData['idx2']
+      };
+      console.log('splitLap=',l1, 'lap_start_date=',l1.lap_start_date);
+      this.w1.lap.push(l1);
+      this.lapSize = this.w1.lap.length;
+      this.w1.lap.sort(this.compare);
+      k = 1;
+      this.w1.lap.forEach(element => {element['lap_index']=k++;});
+      // this.computeLapIndex(this.w1.lap[0]['lap_start_index'], 0);
+      console.log ('updateCustomLapTable, w1.lap=', this.w1.lap);
+      this.srv.lapsSource.next(this.w1.lap);
+     }
+  }
+
+  compare (a: Lap, b: Lap) {
+    let comparison = 0;
+    let t1 = a.lap_start_date;
+    let t2 = b.lap_start_date;
+
+    if ( t1 > t2 ) comparison = 1;
+    if ( t1 < t2 ) comparison = -1;
+
+    return comparison;
+  }
+
+  convertAbstoIndex (x:number) {
+    let w:string|number = <number>this.myChart.getXAxisRect(0)['width'];
+    let index:number = (x-this.myChart.getXAxisRect(0)['x'])*this.w1.gpsCoord.length/w;
+    // console.log('index=',index);
+    return ( Math.round(index) );
+  }
+
   draw = (renderer: any, rect: any): void => {
-    this.render = renderer;
+    this.renderer = renderer;
     this.rect = rect;
   };
+
+  getLapInfos (idx: number) {
+    let idx1:number = this.convertAbstoIndex(this.recessions[idx].from);
+    let idx2:number = this.convertAbstoIndex(this.recessions[idx].to);
+    console.log ('getLapInfos, idx1=', idx1, 'idx2=',idx2);
+    let t = idx2 - idx1;
+    let hh:number = Math.trunc(t/3600);
+    let mm:number = Math.trunc(t/60)-hh*60;
+    let ss:number = t-hh*3600-mm*60;
+    let averageTime = String(hh).padStart(2, '0') + ':' +
+      String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+    let dist:number = Math.round(this.distanceData[idx2] - this.distanceData[idx1]);
+    return {idx1: idx1, idx2: idx2, dist: dist, strTime: averageTime, startTime: idx1};
+  }
 
   ngAfterViewInit() {
     console.log("ngAfterViewInit");
     this.mapsAPILoader.load().then(() => {
       console.log("load Agm");
     });
-
   }
 
-  binaryIndexOf(searchElement) {
+  binaryIndexOf(searchElement, correction) {
     'use strict';
  
     var minIndex = 0;
     var maxIndex = this.resolution - 1;
-    var accuracy = this.workoutSize/this.resolution;
+    var accuracy;
+    if (correction) {
+      accuracy = this.workoutSize/this.resolution;
+    } else {
+      accuracy = 1;
+    }
     var currentIndex;
     var currentElement;
     // console.log ('binaryIndexOf, searchElement=', searchElement);
@@ -586,6 +760,10 @@ export class AppComponent implements AfterViewInit {
     }
   }
 
+  onTableSelect (event: any) {
+    console.log('onTableSelect, selection: ',this.selectedTable);
+  }
+
   onLapInfos(data: infos) {
     console.log(">>>> onLapInfos, total dist=",data.total_dist, 
       "average time=",data.average_time,
@@ -606,7 +784,10 @@ export class AppComponent implements AfterViewInit {
   clickedMarker(label: string, index: number) {
     console.log('clicked the marker:', index);
     let idx:number = index-1;
-    if (idx>=0) {
+    if (idx>=0 || (this.tableType==1)) {
+      if (this.tableType==1) {
+        idx = idx + 1;
+      }
       this.clickLapDistance = this.w1.lap[idx].lap_distance;
       this.clickLapTime = this.w1.lap[idx].lap_time.toString();
     } else {
@@ -626,24 +807,39 @@ export class AppComponent implements AfterViewInit {
         if (event) {
             if (event.args) {
                 if (event.type == 'toggle') {
-                    return;
+                  this.splitBegin = -1;
+                  this.saveCurrentX = -1;
+                  this.onChartArea = false;
+                  this.timer = setTimeout(() => {
+                    this.showBands();
+                  }, 500);  
                 }
             } else if (event.type == 'mouseleave') {
                   this.marker.setVisible(false);
                   this.splitBegin = -1;
                   this.saveCurrentX = -1;
                   this.onChartArea = false;
-             } else if (event.type == 'click') {
+             } else if (event.type == 'mousedown') {
                   if (this.splitBegin <0 ) {
                     this.splitBegin = this.currentX;
                     this.currentRecession = this.bands.length;
                     console.log ('splitBegin=',this.splitBegin);
-                  } else {
+                  } 
+            } else if (event.type == 'mouseup') {
+                  if (this.splitBegin != this.currentX ) {
                     let split: any;
-                    split = { from: this.splitBegin, to: this.currentX}
-                    this.recessions.push(split);
+                    split = { from: this.splitBegin, to: this.currentX }
+                    if(this.recessions.indexOf(split) === -1) {
+                      console.log ('push split', split);
+                      this.recessions.push(split);
+                      this.updateCustomLapTable();
+                    }
                     this.splitBegin = -1;
+                    this.saveCurrentX = -1;
                     console.log ('recessions=',this.recessions);
+                  } else {
+                    this.splitBegin = -1;
+                    this.saveCurrentX = -1;
                   }
             }
         }
@@ -671,13 +867,14 @@ export class AppComponent implements AfterViewInit {
     }
     this.selectedWindow.px = event.clientX;
     this.selectedWindow.py = event.clientY;
-    }
+  }
 
   @HostListener('document:mouseup', ['$event'])
   onCornerRelease(event: MouseEvent) {
     this.selectedWindow.draggingWindow = false;
     this.selectedWindow.draggingCorner = false;
-    this.showBands();
+    if (this.redrawBands)
+      this.showBands();
   }
 
   @HostListener('window:resize', ['$event'])
@@ -687,6 +884,11 @@ export class AppComponent implements AfterViewInit {
     this.updateView();
     /* this.fitToScreen(this.agmMap); */
   }
+}
+
+export interface LapTable {
+  value: number;
+  viewValue: string;
 }
 
 export class Lap {
@@ -744,6 +946,8 @@ export class Workout {
   act: Activity;
   loaded : boolean = false;
   lap: Lap[];
+  watchLaps: Lap[];
+  splitLaps: Lap[];
   gpsCoord: Gps[];
   heartrate: Heartrate[];
   constructor() {}
@@ -792,6 +996,8 @@ export class Window {
     this.y += offsetY;
     this.px = event.clientX;
     this.py = event.clientY;
+
+    this.father.redrawBands = false;
   }
 
   topLeftResize(offsetX: number, offsetY: number) {
@@ -799,23 +1005,27 @@ export class Window {
     this.y += offsetY;
     this.width -= offsetX;
     this.height -= offsetY;
+    this.father.redrawBands = true;
   }
 
   topRightResize(offsetX: number, offsetY: number) {
     this.y += offsetY;
     this.width += offsetX;
     this.height -= offsetY;
+    this.father.redrawBands = true;
   }
 
   bottomLeftResize(offsetX: number, offsetY: number) {
     this.x += offsetX;
     this.width -= offsetX;
     this.height += offsetY;
+    this.father.redrawBands = true;
   }
 
   bottomRightResize(offsetX: number, offsetY: number) {
     this.width += offsetX;
     this.height += offsetY;
+    this.father.redrawBands = true;
   }
 
   onCornerClick(event: MouseEvent, resizer?: Function) {
