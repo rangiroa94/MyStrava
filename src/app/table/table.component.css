@@ -1,7 +1,8 @@
-.example-container {
-  display: flex;
-  flex-direction: column;
-  min-width: auto;
+.table-container {
+  position: absolute;
+  width:90%; 
+  height: calc(90% - 80px);
+  overflow-y: auto;
 }
 
 .mat-table {
@@ -13,7 +14,7 @@
 .mat-tab-group {
     position: absolute;
     width:90%; 
-    height:90%;
+    height:80%;
 }
 
 .mat-header-row {

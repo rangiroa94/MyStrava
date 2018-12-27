@@ -209,7 +209,7 @@ export class AppComponent implements AfterViewInit {
           lap_start_date: item.lap_start_date,
           lap_cumulatedTime: "00:00:00",
           lap_average_speed: Math.round(item.lap_average_speed*36)/10,
-          lap_average_cadence: item.lap_average_cadence,
+          lap_average_cadence: item.lap_average_cadence*2,
           lap_pace_zone: item.lap_pace_zone,
           lap_total_elevation_gain: item.lap_total_elevation_gain,
           lap_start: 0,
@@ -546,18 +546,8 @@ export class AppComponent implements AfterViewInit {
       this.recessions[this.currentRecession] = split;
       this.setCurrentBand();
 
-      let idx1 = this.convertAbstoIndex (this.splitBegin);
-      let idx2 = this.convertAbstoIndex (this.currentX);
-      let t = idx2 - idx1;
-      let hh:number = Math.trunc(t/3600);
-      let mm:number = Math.trunc(t/60)-hh*60;
-      let ss:number = t-hh*3600-mm*60;
-      let totaltime:string;
-      let averageTime = String(hh).padStart(2, '0') + ':' +
-        String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
-      let dist:number = Math.round(this.distanceData[idx2] - this.distanceData[idx1]);
-
-      averageBand = '<b>Split: ' + averageTime + '<br />Distance: ' + dist +'</b><br />';
+      let lapData = this.getLapInfos(0);
+      averageBand = '<b>Split: ' + lapData['strTime'] + '<br />Distance: ' + lapData['dist'] +'</b><br />';
     }
     return '<DIV style="text-align:left">'+averageBand+'<b>Index:</b> ' +
                   index + '<br /><b>HR:</b> ' +
@@ -614,7 +604,11 @@ export class AppComponent implements AfterViewInit {
 
   updateWatchLapTable (update: number) {
     console.log('>>> updateWatchLapTable');
-    this.srv.lapsSource.next(this.w1.lap);
+    this.selectedTable = 0;
+    if (typeof this.w1.watchLaps != "undefined") {
+      this.w1.lap = Object.assign([], this.w1.watchLaps);
+    }
+    this.srv.pushWorkout(this.w1.lap, this.selectedTable);
   }
 
   updateCustomLapTable () {
@@ -629,6 +623,15 @@ export class AppComponent implements AfterViewInit {
     for (let i = this.recessions.length-1; i >0 ; i--) {
       let lapData = this.getLapInfos (i);
       let l1: Lap = new Lap();
+      let avgSpeed: number = 0;
+      let avgHR: number = 0;
+      for (let i=lapData['idx1']; i<=lapData['idx2'];i++) {
+        avgSpeed+=this.speedData[i];
+        avgHR+=this.hrData[i];
+      }
+      avgSpeed=avgSpeed/(lapData['idx2']-lapData['idx1']+1);
+      avgHR=avgHR/(lapData['idx2']-lapData['idx1']+1);
+      console.log('avgSpeed1=',avgSpeed);
       l1 = {
         lap_index: k++,
         lap_start_index: lapData['idx1'],
@@ -637,7 +640,7 @@ export class AppComponent implements AfterViewInit {
         lap_time: lapData['strTime'],
         lap_start_date: (beginTime+lapData['startTime']).toString(),
         lap_cumulatedTime: "00:00:00",
-        lap_average_speed: 0,
+        lap_average_speed: avgSpeed,
         lap_average_cadence: 0,
         lap_pace_zone: 0,
         lap_total_elevation_gain: 0,
@@ -652,7 +655,8 @@ export class AppComponent implements AfterViewInit {
       this.w1.lap.forEach(element => {element['lap_index']=k++;});
       // this.computeLapIndex(this.w1.lap[0]['lap_start_index'], 0);
       console.log ('updateCustomLapTable, w1.lap=', this.w1.lap);
-      this.srv.lapsSource.next(this.w1.lap);
+      this.selectedTable = 1;
+      this.srv.pushWorkout(this.w1.lap,this.selectedTable);
      }
   }
 
@@ -683,7 +687,7 @@ export class AppComponent implements AfterViewInit {
     let idx1:number = this.convertAbstoIndex(this.recessions[idx].from);
     let idx2:number = this.convertAbstoIndex(this.recessions[idx].to);
     console.log ('getLapInfos, idx1=', idx1, 'idx2=',idx2);
-    let t = idx2 - idx1;
+    let t = this.w1.gpsCoord[idx2].gps_time - this.w1.gpsCoord[idx1].gps_time;
     let hh:number = Math.trunc(t/3600);
     let mm:number = Math.trunc(t/60)-hh*60;
     let ss:number = t-hh*3600-mm*60;
@@ -711,6 +715,7 @@ export class AppComponent implements AfterViewInit {
     } else {
       accuracy = 1;
     }
+    // console.log('workoutSize=',this.workoutSize,'accuracy=',accuracy);
     var currentIndex;
     var currentElement;
     // console.log ('binaryIndexOf, searchElement=', searchElement);
@@ -728,6 +733,16 @@ export class AppComponent implements AfterViewInit {
             maxIndex = currentIndex - 1;
         }
         else {
+            let delta=(currentElement-searchElement);
+            // console.log('delta=',delta);
+            if ( delta>0 && Math.abs(delta)>(accuracy/2) ) {
+              // console.log('correction -1');
+              return currentIndex-1;
+            }
+            if ( delta<0 && Math.abs(delta)>(accuracy/2) ) {
+              // console.log('correction +1');
+              return currentIndex+1;
+            }
             return currentIndex;
         }
     }
@@ -762,6 +777,23 @@ export class AppComponent implements AfterViewInit {
 
   onTableSelect (event: any) {
     console.log('onTableSelect, selection: ',this.selectedTable);
+    switch(this.selectedTable) { 
+     case 0: { 
+        this.updateWatchLapTable (1);
+        break; 
+     } 
+     case 1: { 
+        this.updateCustomLapTable (); 
+        break; 
+     }
+     case 2: { 
+        break; 
+     }  
+     default: { 
+        break; 
+     } 
+   }
+
   }
 
   onLapInfos(data: infos) {

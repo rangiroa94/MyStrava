@@ -35,7 +35,9 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   timer: any;
   timer2: any;
   delay: Number;
-  selectedRows = new Array<boolean>();
+  selectedRows: boolean[][];
+  currentTable: number = 0;
+  initOK: boolean = false;
   sumDist: number=0;
   infosLap: infos = new infos();
   srv: WorkoutService;
@@ -44,7 +46,6 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
                 private wktService: WorkoutService ) { 
     console.log('TableComponent');
     this.srv = wktService;
-
   }
 
   ngOnInit() {
@@ -52,11 +53,17 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
     this.srv.workout$.subscribe(
       w => {
         console.log('Subscribe, reception wkr:', w);
+        this.currentTable = this.srv.selectTable;
+        this.initOK = true;
       });
     // this.srv.lapsSource.next(this.wkt.lap);
     this.dataSource = new lapDataSource(this.wkt, this.srv);
-    for(let j:number = 0;j<this.wkt.lap.length;j++) {
-      this.selectedRows[j] = false;
+    this.selectedRows = [];
+    for (let i=0;i<3;i++) {
+      this.selectedRows[i] = [];
+      for(let j:number = 0;j<this.wkt.lap.length;j++) {
+        this.selectedRows[i][j] = false;
+      }
     }
     this.timer = setTimeout(() => {
       this.initTable.emit(1);
@@ -91,7 +98,7 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   expansionDetailRowCollection = new Array<any>();
 
   toggleRow(row: Lap) {
-    console.log('toggleRow, row=',row.lap_index);
+    console.log('toggleRow, row=',row.lap_index, 'selectTable=',this.srv.selectTable);
     this.preventSingleClick = false;
     const delay = 200;
     let sign:number;
@@ -99,8 +106,8 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
     this.infosLap.nbValues = 0;
     this.timer = setTimeout(() => {
         if (!this.preventSingleClick) {
-            this.selectedRows[row.lap_index-1] = !this.selectedRows[row.lap_index-1];
-            if (this.selectedRows[row.lap_index-1]) {
+            this.selectedRows[this.srv.selectTable][row.lap_index-1] = !this.selectedRows[this.srv.selectTable][row.lap_index-1];
+            if (this.selectedRows[this.srv.selectTable][row.lap_index-1]) {
               sign = 1;
             } else {
               sign = -1;
@@ -111,7 +118,7 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
             let averageSpeed: number=0;
             let averageDist: number=0;
             for (let i:number=0;i<this.wkt.lap.length;i++) {
-              if (this.selectedRows[i]) {
+              if (this.selectedRows[this.srv.selectTable][i]) {
                 this.infosLap.nbValues++;
                 let t = new Date('1970-01-01T' + this.wkt.lap[i].lap_time + 'Z');
                 sumTime += t.getTime()/1000;
@@ -119,6 +126,8 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
                 this.infosLap.total_dist += this.wkt.lap[i].lap_distance;
                 averageDist = this.infosLap.total_dist / this.infosLap.nbValues;
                 averageSpeed = 1000*sumTime / this.infosLap.total_dist;
+                //console.log('sumTime=',sumTime,'total_dist=',this.infosLap.total_dist,
+                //  'averageSpeed=',averageSpeed);
               }
             }
             this.infosLap.total_dist = Math.round (this.infosLap.total_dist) /1000;

@@ -54,7 +54,15 @@
   }
   #infos { position: absolute; }
 
-  #tableSelect  {float: center;}
+  #tableSelect  {
+    text-align: center;
+    left: 50%;
+    margin-left: -100px;
+  }
+
+  #projected-content-wrapper {
+    position: absolute;
+  }
 
   .stretch {
     width: 100%;
@@ -189,21 +197,20 @@
         <div (mousedown)='winLap.onCornerClick($event, winLap.topRightResize)' id='win-top-right-resize' class='win-corner-resize-topRight'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize-bottomLeft'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize-bottomRight'></div> 
-        <div class="projected-content-wrapper" (cdkObserveContent)="tabContentChanged()">
+ 
             <mat-form-field id='tableSelect'>
-              <mat-select placeholder="Lap Table" [(ngModel)]="selectedTable"
+              <mat-select placeholder="" [(ngModel)]="selectedTable"
               (selectionChange)="onTableSelect($event.value)">
                 <mat-option *ngFor="let table of tables" [value]="table.value">
                   {{table.viewValue}}
                 </mat-option>
               </mat-select>
             </mat-form-field>
-            <app-table *ngIf="w1" [wkt]="w1" 
+            <app-table id="lapTable" *ngIf="w1" [wkt]="w1" 
                   (lapSelected)="onLapSelected($event)"
                   (lapInfos)="onLapInfos($event)"
                   (initTable)="updateWatchLapTable($event)">
             </app-table> 
-        </div>
 
    </div> 
    <div id='trends' *ngIf="showTrends"
