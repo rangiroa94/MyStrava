@@ -37,9 +37,10 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   delay: Number;
   selectedRows: boolean[][];
   currentTable: number = 0;
+  nbLaps:number = 0;
   initOK: boolean = false;
   sumDist: number=0;
-  infosLap: infos = new infos();
+  infosLap: infos[] = new Array<infos>();
   srv: WorkoutService;
 
   constructor( private changeDetectorRefs: ChangeDetectorRef, 
@@ -53,7 +54,19 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
     this.srv.workout$.subscribe(
       w => {
         console.log('Subscribe, reception wkr:', w);
+        // Restore current selected laps on map
+
+        console.log('Rows.length=',this.srv.nbLaps);
+        for (let i=0; i < this.srv.nbLaps ; i++) {
+          if (this.selectedRows[this.srv.selectTable][i]) {
+            console.log('Restore color for lap: ',(i+1));
+            this.lapSelected.emit((i+1));
+          }
+          this.lapInfos.emit(this.infosLap[this.srv.selectTable]);
+        }
+
         this.currentTable = this.srv.selectTable;
+        this.nbLaps = this.srv.nbLaps;
         this.initOK = true;
       });
     // this.srv.lapsSource.next(this.wkt.lap);
@@ -61,9 +74,11 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
     this.selectedRows = [];
     for (let i=0;i<3;i++) {
       this.selectedRows[i] = [];
-      for(let j:number = 0;j<this.wkt.lap.length;j++) {
+      for(let j:number = 0;j<50;j++) {
         this.selectedRows[i][j] = false;
       }
+      this.infosLap[i] = new infos();
+      this.infosLap[i].nbValues = 0;
     }
     this.timer = setTimeout(() => {
       this.initTable.emit(1);
@@ -102,8 +117,8 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
     this.preventSingleClick = false;
     const delay = 200;
     let sign:number;
-    this.infosLap.total_dist = 0;
-    this.infosLap.nbValues = 0;
+    this.infosLap[this.currentTable].total_dist = 0;
+    this.infosLap[this.currentTable].nbValues = 0;
     this.timer = setTimeout(() => {
         if (!this.preventSingleClick) {
             this.selectedRows[this.srv.selectTable][row.lap_index-1] = !this.selectedRows[this.srv.selectTable][row.lap_index-1];
@@ -119,18 +134,18 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
             let averageDist: number=0;
             for (let i:number=0;i<this.wkt.lap.length;i++) {
               if (this.selectedRows[this.srv.selectTable][i]) {
-                this.infosLap.nbValues++;
+                this.infosLap[this.currentTable].nbValues++;
                 let t = new Date('1970-01-01T' + this.wkt.lap[i].lap_time + 'Z');
                 sumTime += t.getTime()/1000;
-                averageTime = sumTime/this.infosLap.nbValues;
-                this.infosLap.total_dist += this.wkt.lap[i].lap_distance;
-                averageDist = this.infosLap.total_dist / this.infosLap.nbValues;
-                averageSpeed = 1000*sumTime / this.infosLap.total_dist;
-                //console.log('sumTime=',sumTime,'total_dist=',this.infosLap.total_dist,
+                averageTime = sumTime/this.infosLap[this.currentTable].nbValues;
+                this.infosLap[this.currentTable].total_dist += this.wkt.lap[i].lap_distance;
+                averageDist = this.infosLap[this.currentTable].total_dist / this.infosLap[this.currentTable].nbValues;
+                averageSpeed = 1000*sumTime / this.infosLap[this.currentTable].total_dist;
+                //console.log('sumTime=',sumTime,'total_dist=',this.infosLap[this.currentTable].total_dist,
                 //  'averageSpeed=',averageSpeed);
               }
             }
-            this.infosLap.total_dist = Math.round (this.infosLap.total_dist) /1000;
+            this.infosLap[this.currentTable].total_dist = Math.round (this.infosLap[this.currentTable].total_dist) /1000;
             console.log('toggleRow, row selected=',row.lap_index, 'sumTime=', sumTime);
             let hh:number = Math.trunc(sumTime/3600);
             let mm:number = Math.trunc(sumTime/60)-hh*60;
@@ -144,18 +159,18 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
             mm = Math.trunc(averageTime/60)-hh*60;
             ss = averageTime-hh*3600-mm*60;
             ss = Math.round(ss*10)/10;
-            this.infosLap.average_time = String(hh).padStart(2, '0') + ':' +
+            this.infosLap[this.currentTable].average_time = String(hh).padStart(2, '0') + ':' +
               String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
 
             hh = Math.trunc(averageSpeed/3600);
             mm = Math.trunc(averageSpeed/60)-hh*60;
             ss = averageSpeed-hh*3600-mm*60;
             ss = Math.round(ss*10)/10;
-            this.infosLap.average_speed = String(hh).padStart(2, '0') + ':' +
+            this.infosLap[this.currentTable].average_speed = String(hh).padStart(2, '0') + ':' +
               String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
 
-            this.infosLap.total_time = totaltime;
-            this.lapInfos.emit(this.infosLap);
+            this.infosLap[this.currentTable].total_time = totaltime;
+            this.lapInfos.emit(this.infosLap[this.currentTable]);
             // console.log('toggleRow, selectedRows=',this.selectedRows);
         }
       }, delay);
@@ -188,7 +203,7 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
    } 
 
   mouseLeaveRow(row: Lap) {
-    if ( !this.selectedRows[row.lap_index-1] ) {
+    if ( !this.selectedRows[this.srv.selectTable][row.lap_index-1] ) {
       this.lapSelected.emit(row.lap_index*-1);
     }
   }
@@ -221,12 +236,6 @@ export class lapDataSource extends DataSource<Lap> {
     console.log('lapDataSource constructor');
   }
   connect(): Observable<Lap[]> {
-    /*
-    const rows = [];
-    this.workout.lap.forEach(element => {rows.push(element, { detailRow: true, element })});
-    console.log('lapDataSource, rows=: ',rows);
-    return of(rows);
-    */
     return this.srv.lapsSource;
   }
 

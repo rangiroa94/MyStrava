@@ -154,12 +154,12 @@
             (markerClick)="clickedMarker(m.label, i)"
             [latitude]="w1.gpsCoord[m.lap_start].gps_lat"
             [longitude]="w1.gpsCoord[m.lap_start].gps_long"
-            [label]="(!tableType) ? (m.lap_index-1).toString() : (m.lap_index).toString()">
+            [label]="(!selectedTable) ? (m.lap_index-1).toString() : (m.lap_index).toString()">
             <agm-info-window>
               <strong *ngIf="(i >= 0) && (i < lapSize)"> Dist: {{clickLapDistance}} m<br>Time: {{clickLapTime}}<br></strong>
             </agm-info-window>
           </agm-marker>
-          <agm-marker *ngIf="w1.lap[lapSize-1].lap_end_index"
+          <agm-marker *ngIf="lap_end_index"
             [latitude]="w1.gpsCoord[w1.lap[lapSize-1].lap_end].gps_lat"
             [longitude]="w1.gpsCoord[w1.lap[lapSize-1].lap_end].gps_long"
             [label]="(lapSize).toString()">

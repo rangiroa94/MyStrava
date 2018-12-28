@@ -62,6 +62,7 @@ export class AppComponent implements AfterViewInit {
   workoutSize:number;
   ratio: number;
   lapSize: number = 0;
+  lap_end_index: number = 0;
   lapInfos: infos = new infos();
   infosData: infoTable[] = [
     {title: 'Total time', value: ''},
@@ -79,13 +80,12 @@ export class AppComponent implements AfterViewInit {
   winInfos: Window = new Window(this);
   winSettings: Window = new Window(this);
 
-  tableType: number = 0;  //0: WatchLap, 1: customLap, 2: splitLap
   tables: LapTable[] = [
     {value: 0, viewValue: 'Manual laps'},
     {value: 1, viewValue: 'Custom Laps'},
     {value: 2, viewValue: 'Split Laps'}
   ];
-  selectedTable: number=0;
+  selectedTable: number=0;  //0: WatchLap, 1: customLap, 2: splitLap
 
   // Charts
   marker: any;
@@ -218,6 +218,7 @@ export class AppComponent implements AfterViewInit {
         this.w1.lap.push(l1);
       });
       this.lapSize = this.w1.lap.length;
+      this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end_index;
       this.workoutSize = this.w1.lap[this.w1.lap.length-1].lap_end_index;
       this.ratio = this.resolution / this.workoutSize;
       console.log('ratio=', this.ratio);
@@ -258,46 +259,6 @@ export class AppComponent implements AfterViewInit {
   }
 
   computeWatchLapIndex ( startIdx: number, correction: number ) {
-    let j:number;
-    let idx = startIdx;
-    let t: Date = new Date(this.w1.lap[0].lap_start_date);
-    let curTime:number=t.getTime()/1000;
-    let splitTime=this.w1.gpsCoord[startIdx].gps_time;
-    let computeLapTime=0;
-    for(j = 0;j<this.w1.lap.length;j++) {
-      // this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
-      // this.w1.lap[j].lap_end = Math.round(this.w1.lap[j].lap_end_index*this.ratio);
-      this.w1.lap[j].lap_start = idx;
-      // let t: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
-      if (j<this.w1.lap.length-1) {
-          let t2: Date = new Date(this.w1.lap[j+1].lap_start_date);
-          splitTime += t2.getTime()/1000 - curTime;
-          computeLapTime = t2.getTime()/1000 - curTime;
-          curTime = t2.getTime()/1000;
-          let hh:number = Math.trunc(computeLapTime/3600);
-          let mm:number = Math.trunc(computeLapTime/60)-hh*60;
-          let ss:number = computeLapTime-hh*3600-mm*60;
-          this.w1.lap[j].lap_time = String(hh).padStart(2, '0') + ':' +
-            String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
-      } else {
-          let t2: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
-          console.log ('init, t2=',t2);
-          splitTime += t2.getTime()/1000;
-      }
-      
-      console.log('lap ',j+1,'lap_time=',this.w1.lap[j].lap_time, 
-        'splitTime=',splitTime, 'idx=',this.binaryIndexOf(splitTime, correction));
-      let hh:number = Math.trunc(splitTime/3600);
-      let mm:number = Math.trunc(splitTime/60)-hh*60;
-      let ss:number = splitTime-hh*3600-mm*60;
-      this.w1.lap[j].lap_cumulatedTime = String(hh).padStart(2, '0') + ':' +
-        String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
-      idx = this.binaryIndexOf(splitTime, correction);
-      this.w1.lap[j].lap_end = idx;
-    }
-  }
-
-  computeLapIndex ( startIdx: number, correction: number ) {
     let j:number;
     let idx = startIdx;
     let t: Date = new Date(this.w1.lap[0].lap_start_date);
@@ -604,6 +565,7 @@ export class AppComponent implements AfterViewInit {
 
   updateWatchLapTable (update: number) {
     console.log('>>> updateWatchLapTable');
+    this.resetLapsColor();
     this.selectedTable = 0;
     if (typeof this.w1.watchLaps != "undefined") {
       this.w1.lap = Object.assign([], this.w1.watchLaps);
@@ -612,12 +574,15 @@ export class AppComponent implements AfterViewInit {
   }
 
   updateCustomLapTable () {
-    this.tableType = 1;
+    console.log('>>> updateCustomLapTable');
+    this.resetLapsColor();
+    this.selectedTable = 1;
     if (this.recessions.length<3) {
       this.w1.watchLaps = Object.assign([], this.w1.lap);
-      console.log('watchLaps=',this.w1.watchLaps);
+      console.log('copy watchLaps=',this.w1.watchLaps);
     }
     this.w1.lap = [];
+    this.lap_end_index = 0;
     let k = 1;
     let beginTime: number = this.startHour;
     for (let i = this.recessions.length-1; i >0 ; i--) {
@@ -650,14 +615,14 @@ export class AppComponent implements AfterViewInit {
       console.log('splitLap=',l1, 'lap_start_date=',l1.lap_start_date);
       this.w1.lap.push(l1);
       this.lapSize = this.w1.lap.length;
+      this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end_index;
       this.w1.lap.sort(this.compare);
       k = 1;
       this.w1.lap.forEach(element => {element['lap_index']=k++;});
-      // this.computeLapIndex(this.w1.lap[0]['lap_start_index'], 0);
       console.log ('updateCustomLapTable, w1.lap=', this.w1.lap);
-      this.selectedTable = 1;
-      this.srv.pushWorkout(this.w1.lap,this.selectedTable);
+
      }
+     this.srv.pushWorkout(this.w1.lap,this.selectedTable);
   }
 
   compare (a: Lap, b: Lap) {
@@ -750,6 +715,13 @@ export class AppComponent implements AfterViewInit {
     return -1;
   }
 
+  resetLapsColor () {
+    console.log ('resetLapsColor, resolution=',this.resolution);
+    for (let i=0;i<this.resolution;i++) {
+      this.w1.gpsCoord[i].speed = 0;
+    }
+  }
+
 
   onLapSelected (numLap: number) {
     // console.log(">>>> onLapSelected, lap=", numLap);
@@ -816,8 +788,8 @@ export class AppComponent implements AfterViewInit {
   clickedMarker(label: string, index: number) {
     console.log('clicked the marker:', index);
     let idx:number = index-1;
-    if (idx>=0 || (this.tableType==1)) {
-      if (this.tableType==1) {
+    if (idx>=0 || (this.selectedTable==1)) {
+      if (this.selectedTable==1) {
         idx = idx + 1;
       }
       this.clickLapDistance = this.w1.lap[idx].lap_distance;
