@@ -18,8 +18,9 @@
 
 		<!-- Expanded Content Column - The detail row is made up of this one column -->
 	    <ng-container matColumnDef="expandedDetail">
-	      <mat-cell *matCellDef="let detail"> 
+	      <mat-cell *matCellDef="let detail" style="white-space: pre-wrap;line-height: 130%;font-size: 14px;"> 
 	        avg speed           : {{detail.element.lap_average_speed}} km/h<br>
+	        avg HR              : {{detail.element.lap_average_HR}}<br>
 	        avg cadence         : {{detail.element.lap_average_cadence}}<br>
 	        total elevation gain: {{detail.element.lap_total_elevation_gain}}<br>
 	        total Time          : {{detail.element.lap_cumulatedTime}}

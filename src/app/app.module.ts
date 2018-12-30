@@ -9,7 +9,6 @@ import { AgmCoreModule, GoogleMapsAPIWrapper } from '@agm/core';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { TableComponent } from './table/table.component';
-import { Workout, Lap, settingsDialog } from './app.component';
 import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
 import { jqxTooltipComponent } from "jqwidgets-scripts/jqwidgets-ts/angular_jqxtooltip";
 
@@ -18,7 +17,6 @@ import { WorkoutService } from './workout.service';
 @NgModule({
   declarations: [
     AppComponent, 
-    settingsDialog,
     TableComponent,
     jqxChartComponent,
     jqxTooltipComponent
@@ -40,7 +38,8 @@ import { WorkoutService } from './workout.service';
 	HttpClientModule
   ],
   providers: [GoogleMapsAPIWrapper,
-              WorkoutService],
+              WorkoutService
+              ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

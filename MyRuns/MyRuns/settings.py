@@ -12,9 +12,10 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import mimetypes 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+print('BASE_DIR=',BASE_DIR)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -116,14 +117,21 @@ REST_FRAMEWORK = {
 }
 
 ANGULAR_APP_DIR = os.path.join(BASE_DIR, 'frontend/dist')
+SVG_DIR = os.path.join(BASE_DIR, 'static/assets')
+
+print ('SVG_DIR=',SVG_DIR)
 
 STATICFILES_DIRS = [
+	SVG_DIR,
     os.path.join(ANGULAR_APP_DIR),
 ]   
 
 STATIC_URL = '/static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+mimetypes.add_type("assets/svg+xml", ".svg", True)
+print('mimetypes: ',mimetypes.guess_type('assets/run.svg'))
 
 
 

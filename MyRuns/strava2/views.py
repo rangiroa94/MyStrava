@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404, render, redirect
-from .models import Login, Activity, Workout, Lap, GpsCoord, HeartRate, Speed, Elevation
+from .models import Login, Activity, Workout, Lap, GpsCoord, HeartRate, Speed, Elevation, Distance, Split
 from django.views import generic
 from stravalib import Client
 from datetime import datetime, timedelta
@@ -65,6 +65,7 @@ class ActivitiesView(generic.ListView):
             strDate = act.start_date.strftime("%Y-%m-%d %H:%M:%S")
             print ('start_date=',strDate)
             print ('act.distance=',act.distance)
+            print ('act.type=',act.type)
             dist = re.sub(' .*$','',str(act.distance))
             print ('dist=',dist)
             strDistance = format(float(dist)/1000,'.2f')
@@ -72,6 +73,7 @@ class ActivitiesView(generic.ListView):
             print ('stravaId=',act.upload_id)
             print ('name=',act.name)
             print ('time=',act.elapsed_time)
+            print ('splits_metric=',act.splits_metric)
             if not Activity.objects.filter(stravaId=activity.id).exists():
                 workout=Workout.objects.create(name=act.name)
                 print ('wid=',workout.id)
@@ -80,8 +82,16 @@ class ActivitiesView(generic.ListView):
                     time=act.elapsed_time,label=act.name,stravaId=activity.id,wid=workout.id,workout_id=workout.id)
                 stravaAct.save()
                 Workout.objects.filter(id=workout.id).update(actId=stravaAct.id)
+                split = Split.objects.filter(workout__id=workout.id)
+                print ('Split first element=',split.count())
+                if not split.count():
+                    objs = [
+                        Split(split_index=i,split_distance=split.distance,split_time=split.elapsed_time,workout=workout) for i, split in enumerate(act.splits_metric)
+                    ]
+                    split = Split.objects.bulk_create(objs)
             else:
                 Activity.objects.filter(stravaId=activity.id).update(strTime=strDate,strDist=strDistance)
+                
         if act is not None : 
             login.lastUpdate = datetime.now()
             login.save()
@@ -137,8 +147,11 @@ class WorkoutDetail(APIView):
         streams = self.client.get_activity_streams(activity_id=activity.stravaId,resolution='medium',types=types)
         print ('streams=',streams)
         #print('time seq size=',len(streams['time'].data))
-        #print('time seq',streams['time'].data)
-        #print('dist seq',streams['heartrate'].data)
+        #print('dist seq',streams['distance'].data)
+        #print('speed seq',streams['velocity_smooth'].data)
+        #print('elevation seq',streams['altitude'].data)
+        #print('HR seq',streams['heartrate'].data)
+        #print('gps seq',streams['latlng'].data)
         gps = GpsCoord.objects.filter(workout__id=workout.id)
         print ('gps first element=',gps.count())
         if not gps.count():
@@ -146,6 +159,9 @@ class WorkoutDetail(APIView):
             objs = [
                 GpsCoord(gps_index=i,gps_time=streams['time'].data[i],gps_lat=gps[0],gps_long=gps[1],workout=workout) for i, gps in enumerate(streams['latlng'].data)
             ]
+            #print ('GPS seq')
+            #for i, gps in enumerate(streams['latlng'].data):
+            #    print ('gps_index:',i,'gps_lat:',gps[0],'gps_long:',gps[1],'gps_time:',streams['time'].data[i])
             coord = GpsCoord.objects.bulk_create(objs)
         
         hr = HeartRate.objects.filter(workout__id=workout.id)
@@ -154,6 +170,13 @@ class WorkoutDetail(APIView):
                 HeartRate(hr_index=i,hr_value=hr,workout=workout) for i, hr in enumerate(streams['heartrate'].data)
             ]
             coord = HeartRate.objects.bulk_create(objs)
+            
+        distance = Distance.objects.filter(workout__id=workout.id)
+        if not distance.count():
+            objs = [
+                Distance(distance_index=i,distance_value=dist,workout=workout) for i, dist in enumerate(streams['distance'].data)
+            ]
+            coord = Distance.objects.bulk_create(objs)
             
         speed = Speed.objects.filter(workout__id=workout.id)
         if not speed.count():
@@ -179,6 +202,7 @@ class WorkoutDetail(APIView):
             print ('strLap,lap_average_cadence=',strLap.average_cadence)
             print ('start_date=',strLap.start_date)
             print ('lap_time=',strLap.elapsed_time)
+            print ('lap_distance=',strLap.distance)
             if strLap.average_cadence is None:
                 strLap.average_cadence=0;
             lap = Lap.objects.filter(workout__id=workout.id, lap_index=i)

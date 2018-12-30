@@ -35,6 +35,7 @@ class Activity(models.Model):
     strDist = models.CharField(max_length=10,default="")
     strTime = models.CharField(max_length=20,default="")
     workout = models.ForeignKey(Workout, related_name='act', on_delete=models.PROTECT)
+    type = models.CharField(max_length=25,default='')
     resolution = models.IntegerField(default=1000)
     
     def __str__(self):              # __unicode__ on Python 2
@@ -52,6 +53,14 @@ class Lap(models.Model):
     lap_pace_zone = models.IntegerField(default=0)
     lap_total_elevation_gain = models.FloatField(default=0)
     workout = models.ForeignKey(Workout, related_name='laps', on_delete=models.PROTECT)
+    def __str__(self):              # __unicode__ on Python 2
+        return self.workout.name
+        
+class Split(models.Model):
+    split_index = models.IntegerField(default=0)
+    split_distance = models.FloatField(default=0)
+    split_time = models.DurationField(default=0)
+    workout = models.ForeignKey(Workout, related_name='split', on_delete=models.PROTECT)
     def __str__(self):              # __unicode__ on Python 2
         return self.workout.name
         
@@ -75,6 +84,13 @@ class Speed(models.Model):
     speed_index = models.IntegerField(default=0)
     speed_value = models.FloatField(default=0)
     workout = models.ForeignKey(Workout, related_name='speed', on_delete=models.PROTECT)
+    def __str__(self):              # __unicode__ on Python 2
+        return self.workout.name
+        
+class Distance(models.Model):
+    distance_index = models.IntegerField(default=0)
+    distance_value = models.FloatField(default=0)
+    workout = models.ForeignKey(Workout, related_name='distance', on_delete=models.PROTECT)
     def __str__(self):              # __unicode__ on Python 2
         return self.workout.name
 

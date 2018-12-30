@@ -3,10 +3,9 @@ import { Component, EventEmitter, OnChanges, SimpleChanges, Input, Output,
 import { DataSource } from '@angular/cdk/collections';
 import { Observable, of } from 'rxjs';
 import { animate, state, style, transition, trigger } from '@angular/animations';
-import { Workout, Lap} from '../app.component';
 import { MatTabChangeEvent } from '@angular/material';
 import { DatePipe } from '@angular/common';
-import { WorkoutService } from '../workout.service';
+import { WorkoutService, Workout, Lap, lapSelection } from '../workout.service';
 
 @Component({
   selector: 'app-table',
@@ -22,7 +21,7 @@ import { WorkoutService } from '../workout.service';
 })
 export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   @Input() wkt: Workout;
-  @Output() lapSelected: EventEmitter<number>  = new EventEmitter<number>();
+  @Output() lapSelected: EventEmitter<lapSelection>  = new EventEmitter<lapSelection>();
   @Output() lapInfos: EventEmitter<infos>  = new EventEmitter<infos>();
   @Output() initTable: EventEmitter<number>  = new EventEmitter<number>();
   nameTab: String = 'Laps';
@@ -57,10 +56,12 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
         // Restore current selected laps on map
 
         console.log('Rows.length=',this.srv.nbLaps);
+        let lapSelect: lapSelection;
         for (let i=0; i < this.srv.nbLaps ; i++) {
           if (this.selectedRows[this.srv.selectTable][i]) {
             console.log('Restore color for lap: ',(i+1));
-            this.lapSelected.emit((i+1));
+            lapSelect = { lap_idx: i+1, isCurrent: false};
+            this.lapSelected.emit(lapSelect);
           }
           this.lapInfos.emit(this.infosLap[this.srv.selectTable]);
         }
@@ -117,6 +118,7 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
     this.preventSingleClick = false;
     const delay = 200;
     let sign:number;
+    let lapSelect: lapSelection;
     this.infosLap[this.currentTable].total_dist = 0;
     this.infosLap[this.currentTable].nbValues = 0;
     this.timer = setTimeout(() => {
@@ -127,11 +129,13 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
             } else {
               sign = -1;
             }
-            this.lapSelected.emit(row.lap_index*sign);
+            lapSelect = { lap_idx: row.lap_index*sign, isCurrent: false};
+            this.lapSelected.emit(lapSelect);
             let sumTime: number=0;
             let averageTime: number=0;
             let averageSpeed: number=0;
             let averageDist: number=0;
+            let averageHR: number=0;
             for (let i:number=0;i<this.wkt.lap.length;i++) {
               if (this.selectedRows[this.srv.selectTable][i]) {
                 this.infosLap[this.currentTable].nbValues++;
@@ -141,10 +145,14 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
                 this.infosLap[this.currentTable].total_dist += this.wkt.lap[i].lap_distance;
                 averageDist = this.infosLap[this.currentTable].total_dist / this.infosLap[this.currentTable].nbValues;
                 averageSpeed = 1000*sumTime / this.infosLap[this.currentTable].total_dist;
+                averageHR += this.wkt.lap[i].lap_average_HR / this.wkt.lap.length;
                 //console.log('sumTime=',sumTime,'total_dist=',this.infosLap[this.currentTable].total_dist,
                 //  'averageSpeed=',averageSpeed);
               }
             }
+            averageSpeed = Math.trunc(averageSpeed*100)/100;
+            averageHR = Math.round(averageHR);
+
             this.infosLap[this.currentTable].total_dist = Math.round (this.infosLap[this.currentTable].total_dist) /1000;
             console.log('toggleRow, row selected=',row.lap_index, 'sumTime=', sumTime);
             let hh:number = Math.trunc(sumTime/3600);
@@ -170,6 +178,7 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
               String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
 
             this.infosLap[this.currentTable].total_time = totaltime;
+            this.infosLap[this.currentTable].average_HR = averageHR;
             this.lapInfos.emit(this.infosLap[this.currentTable]);
             // console.log('toggleRow, selectedRows=',this.selectedRows);
         }
@@ -199,13 +208,19 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   }
 
   mouseEnterRow(row: Lap) {
-    this.lapSelected.emit(row.lap_index);
+    let lapSelect: lapSelection;
+    lapSelect = { lap_idx: row.lap_index, isCurrent: true};
+    this.lapSelected.emit(lapSelect);
    } 
 
   mouseLeaveRow(row: Lap) {
+    let lapSelect: lapSelection;
     if ( !this.selectedRows[this.srv.selectTable][row.lap_index-1] ) {
-      this.lapSelected.emit(row.lap_index*-1);
+      lapSelect = { lap_idx: row.lap_index*-1, isCurrent: false};
+    } else {
+      lapSelect = { lap_idx: row.lap_index, isCurrent: false};
     }
+    this.lapSelected.emit(lapSelect);
   }
 
   refresh () {
@@ -247,6 +262,7 @@ export class infos {
   total_time: string;
   average_time: string;
   average_speed: string;
+  average_HR: number;
   nbValues: number;
 }
 

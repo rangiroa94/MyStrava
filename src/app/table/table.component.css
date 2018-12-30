@@ -52,6 +52,7 @@
 
 .highlight{
   color: red;
+  font-weight: bold;
 }
 
 .element-row {
@@ -68,4 +69,8 @@
 
 .element-row.expanded {
   border-bottom-color: transparent;
+}
+
+::ng-deep .element-row.expanded {
+    white-space: pre-wrap 
 }

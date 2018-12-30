@@ -1,4 +1,4 @@
-from .models import Login, Activity, Workout, User, Lap, GpsCoord, HeartRate, Speed, Elevation
+from .models import Login, Activity, Workout, User, Lap, GpsCoord, HeartRate, Speed, Elevation, Distance, Split
 from rest_framework import serializers
 from strava2.stravaModel import gpsCoord
 
@@ -10,12 +10,17 @@ class UserSerializer(serializers.ModelSerializer):
 class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Activity
-        fields = ('label', 'start_date', 'wid', 'stravaId', 'distance', 'time', 'strDist', 'strTime', 'resolution')
+        fields = ('label', 'start_date', 'wid', 'stravaId', 'distance', 'time', 'type', 'strDist', 'strTime', 'resolution')
 
 class LapSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lap
         fields = ('lap_index', 'lap_distance', 'lap_time', 'lap_start_date', 'lap_average_speed', 'lap_average_cadence','lap_pace_zone','lap_total_elevation_gain','lap_start_index','lap_end_index')
+        
+class SplitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Split
+        fields = ('split_index', 'split_distance', 'split_time')
         
 class gpsCoordSerializer(serializers.Serializer):
     gps_index = serializers.IntegerField()
@@ -31,6 +36,9 @@ class SpeedSerializer(serializers.Serializer):
         
 class ElevationSerializer(serializers.Serializer):
     elevation_value = serializers.FloatField()
+    
+class DistanceSerializer(serializers.Serializer):
+    distance_value = serializers.FloatField()
         
 class WorkoutSerializer(serializers.ModelSerializer):
     act = ActivitySerializer(many=True)
@@ -39,8 +47,10 @@ class WorkoutSerializer(serializers.ModelSerializer):
     heartrate = HrSerializer(many=True)
     speed = SpeedSerializer(many=True)
     elevation = ElevationSerializer(many=True)
+    distance = DistanceSerializer(many=True)
+    split = SplitSerializer(many=True)
     
     class Meta:
         model = Workout
-        fields = ('actId', 'act', 'name','laps', 'gps', 'heartrate', 'speed', 'elevation')
+        fields = ('actId', 'act', 'name','laps', 'gps', 'heartrate', 'speed', 'elevation', 'distance', 'split')
         
