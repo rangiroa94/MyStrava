@@ -9,9 +9,12 @@ import { GoogleMapsAPIWrapper, AgmMap, LatLngBounds, LatLngBoundsLiteral, MapsAP
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 import { Chart } from 'chart.js';
-import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
+import { jqxChartComponent  } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
+import { jqxTooltipComponent  } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxtooltip';
 import { WorkoutService, Gps, Heartrate, Activity, Lap, Workout, 
   lapSelection, Split } from './workout.service';
+import { DOCUMENT } from '@angular/common';
+
 
 declare var google: any;
 
@@ -23,6 +26,7 @@ export interface DialogData {
 export class myIcone {
   path: string;
   color: string;
+  viewbox: string;
 }
 
 @Component({
@@ -39,7 +43,8 @@ export class myIcone {
 })
 
 export class AppComponent implements AfterViewInit {
-  @ViewChild('myChart') myChart: jqxChartComponent;
+  @ViewChild('myChart') myChart: jqxChartComponent; 
+  @ViewChild('myToolTip') myToolTip: jqxTooltipComponent ;
   title = 'MyStrava';
   /* url : string = 'http://fakarava94.no-ip.org:3000/workout/'; */
   url: string = '/strava2/workoutDetail/';
@@ -81,10 +86,10 @@ export class AppComponent implements AfterViewInit {
   showTrends: boolean = true;    
   showSettings: boolean = true;  
         
-  winLap: Window = new Window(this);
-  winTrends: Window = new Window(this);
-  winInfos: Window = new Window(this);
-  winSettings: Window = new Window(this);
+  winLap: Window = new Window(this,1);
+  winTrends: Window = new Window(this,2);
+  winInfos: Window = new Window(this,3);
+  winSettings: Window = new Window(this,4);
 
   tables: LapTable[] = [
     {value: 0, viewValue: 'Manual laps'},
@@ -134,6 +139,9 @@ export class AppComponent implements AfterViewInit {
   timer: any;
   Ymin:number = 0;
   Ymax:number = 0;
+  xMin: number = 0;
+  xWidth: number = 0;
+  firstRefresh: boolean = true;
 
   w1: Workout;
   srv: WorkoutService;
@@ -158,6 +166,7 @@ export class AppComponent implements AfterViewInit {
     this.selectedWindow = this.winLap;
 
     console.log('innerWidth=', window.innerWidth);
+
 
     this.done = 0;
     this.wid = localStorage.getItem('wid');
@@ -294,16 +303,19 @@ export class AppComponent implements AfterViewInit {
       // icon for avtivity type
       let ic = new myIcone ();
       ic = {
+          viewbox:"0 0 10 10",
           path: "M283.733,85.333c23.467,0,42.667-19.2,42.667-42.667C326.4,19.2,307.2,0,283.733,0s-42.667,19.2-42.667,42.667 S260.267,85.333,283.733,85.333zM401.067,245.333v-42.667c-39.467,0-73.6-21.333-92.8-52.267L288,116.267C280.533,103.467,266.667,96,251.733,96 c-5.333,0-10.667,1.067-16,3.2l-112,45.867v100.267H166.4v-71.467l37.333-14.933l-33.067,171.733L66.133,310.4L57.6,352 c0,0,149.333,28.8,149.333,29.867L227.2,288l45.867,42.667v128h42.667V297.6L272,253.867l12.8-64 C312.533,224,354.133,245.333,401.067,245.333z",
           color: "#FFDA44"
       }
       this.typeIcon['Run'] = ic;
       ic = {
+        viewbox: "-200 -200 512 512",
           path: "M321.097,112.359c20.973,12.338,47.985,5.315,60.293-15.652c12.34-20.973,5.35-47.974-15.623-60.304   c-21.009-12.332-47.99-5.317-60.314,15.65C293.129,73.036,300.103,100.027,321.097,112.359zM393.081,264.102c-2.414,0-4.8,0.194-7.169,0.362l-14.431-71.605l4.702-1.757c10.666-3.987,16.093-15.868,12.098-26.54   c-3.994-10.681-15.946-16.084-26.531-12.09l-51.823,19.38l-2.321-18.864c6.3-13.193,5.541-29.78-4.767-41.482   c-21.224-24.092-47.12-12.508-55.191-5.976l-106.884,86.555l0.016,0.024c-3.319,2.893-6.089,6.485-7.86,10.842   c-2.191,5.396-2.596,11.067-1.564,16.384c-8.503,0.669-15.255,7.571-15.255,16.246c0,9.085,7.346,16.44,16.432,16.48l-6.797,15.906   c-8.62-2.465-17.674-3.866-27.066-3.866C44.27,264.102,0,308.354,0,362.754c0,54.403,44.27,98.663,98.668,98.663   c54.403,0,98.652-44.26,98.652-98.663c0-36.228-19.683-67.867-48.858-85.024l10.957-25.652h17.767l60.281,24.462l-32.201,52.773   c-8.297,13.612-3.994,31.382,9.615,39.685c4.691,2.86,9.878,4.229,15,4.229c9.729,0,19.234-4.929,24.677-13.838l29.339-48.095   l19.072,11.511c-5.447,12.227-8.54,25.726-8.54,39.95c0,54.403,44.254,98.663,98.652,98.663c54.402,0,98.656-44.26,98.656-98.663   C491.737,308.354,447.483,264.102,393.081,264.102z M98.668,436.671c-40.756,0-73.923-33.161-73.923-73.917   c0-40.756,33.167-73.909,73.923-73.909c5.944,0,11.649,0.896,17.188,2.224l-20.476,47.893   c-11.758,1.619-20.843,11.598-20.843,23.792c0,13.323,10.808,24.132,24.13,24.132c8.767,0,16.367-4.745,20.589-11.76h52.065   C165.395,409.988,135.188,436.671,98.668,436.671z M171.322,350.383h-52.065c-0.355-0.588-0.708-1.176-1.112-1.732l20.476-47.901   C155.679,311.776,167.793,329.595,171.322,350.383z M296.781,290.175l7.666-12.564c4.416-7.233,5.431-16.038,2.774-24.084   c-2.661-8.046-8.718-14.515-16.562-17.704l-52.725-21.395l32.443-26.281l1.804,14.691c0.756,6.267,4.366,11.841,9.761,15.12   c3.271,1.981,6.979,2.988,10.698,2.988c2.435,0,4.88-0.435,7.218-1.306l48.15-18.001l13.627,67.691   c-18.268,6.162-34.117,17.51-45.848,32.314L296.781,290.175z M375.396,337.633l-38.003-22.94   c7.877-9.118,17.787-16.319,29.205-20.734L375.396,337.633z M393.081,436.671c-40.757,0-73.907-33.161-73.907-73.917   c0-9.544,1.965-18.597,5.268-26.983l44.541,26.888c0,0.032-0.016,0.064-0.016,0.095c0,13.323,10.808,24.132,24.114,24.132   c13.322,0,24.118-10.81,24.118-24.132c0-10.478-6.721-19.307-16.06-22.64l-10.277-51.043c0.756-0.024,1.463-0.226,2.22-0.226   c40.757,0,73.911,33.153,73.911,73.909C466.992,403.51,433.838,436.671,393.081,436.671z",
           color: "#006DF0"
       }
       this.typeIcon['Ride'] = ic;
       ic = {
+        viewbox:"0 0 10 10",
           path: "M170.667,128.002l-69.333,69.333c6.613,2.56,11.947,5.653,16.427,8.32c7.893,4.8,12.693,7.68,24.533,7.68     c11.84,0,16.64-2.88,24.533-7.573c9.6-5.76,22.827-13.76,46.507-13.76s36.907,7.893,46.507,13.76     c7.893,4.8,12.693,7.573,24.533,7.573c11.84,0,16.64-2.88,24.533-7.573c2.56-1.6,5.44-3.2,8.64-4.907L180.907,64.002     C147.733,30.828,117.333,21.122,64,21.335v53.333c38.827-0.213,61.547,8.32,85.333,32L170.667,128.002zM401.92,259.095c-9.6-5.867-22.827-13.76-46.507-13.76s-36.907,8-46.507,13.76c-7.893,4.693-12.693,7.573-24.533,7.573     c-11.84,0-16.64-2.773-24.533-7.573c-9.6-5.867-22.827-13.76-46.507-13.76s-36.907,8-46.507,13.76     c-7.893,4.693-12.693,7.573-24.533,7.573c-11.947,0-16.747-2.88-24.64-7.68c-9.6-5.76-22.827-13.653-46.507-13.653     s-36.907,7.893-46.507,13.653c-8,4.8-12.8,7.68-24.64,7.68v42.667c23.68,0,36.907-7.893,46.507-13.653     c8-4.8,12.693-7.68,24.64-7.68s16.747,2.88,24.64,7.68c9.6,5.76,22.827,13.653,46.507,13.653s36.907-7.893,46.72-13.76     c7.893-4.693,12.693-7.573,24.533-7.573c11.84,0,16.64,2.773,24.533,7.573c9.6,5.867,22.827,13.76,46.507,13.76     c23.68,0,36.907-8,46.507-13.76c7.893-4.693,12.693-7.573,24.533-7.573c11.84,0,16.64,2.88,24.533,7.573     c9.6,5.867,22.827,13.76,46.507,13.76v-42.667C414.827,266.668,410.027,263.788,401.92,259.095zM355.413,341.335c-23.68,0-36.907,8-46.507,13.76c-7.893,4.693-12.693,7.573-24.533,7.573     c-11.84,0-16.64-2.773-24.533-7.573c-9.6-5.867-22.827-13.76-46.507-13.76s-36.907,8-46.507,13.76     c-7.893,4.693-12.693,7.573-24.533,7.573c-11.947,0-16.747-2.88-24.64-7.68c-9.6-5.76-22.827-13.653-46.507-13.653     s-36.907,7.893-46.507,13.653c-8,4.8-12.8,7.68-24.64,7.68v42.667c23.68,0,36.907-7.893,46.507-13.653     c8-4.8,12.693-7.68,24.64-7.68s16.747,2.88,24.64,7.68c9.6,5.76,22.827,13.653,46.507,13.653s36.907-7.893,46.72-13.76     c7.893-4.693,12.693-7.573,24.533-7.573c11.84,0,16.64,2.773,24.533,7.573c9.6,5.867,22.827,13.76,46.507,13.76     c23.68,0,36.907-8,46.507-13.76c7.893-4.693,12.693-7.573,24.533-7.573c11.84,0,16.64,2.88,24.533,7.573     c9.6,5.867,22.827,13.76,46.507,13.76v-42.667c-11.84,0-16.64-2.88-24.747-7.573C392.32,349.228,379.093,341.335,355.413,341.335z",
           color: "#91DC5A"
       }
@@ -470,15 +482,25 @@ export class AppComponent implements AfterViewInit {
 
     this.padding = { left: 2, top: 2, right: 15, bottom: 5 };
     this.titlePadding = { left: 0, top: 0, right: 0, bottom: 10 };
+    console.log ('w1.act.time=', this.w1.act.time);
+    let t = new Date('1970-01-01T' + this.w1.act.time + 'Z');
+    let workoutDuration = t.getTime()/1000;
+    console.log ('workoutDuration=', t, workoutDuration);
+    let step = workoutDuration / (this.resolution-1);
+    console.log ('step=', step);
     this.xAxis =
     {
         valuesOnTicks: true,
+        minValue: 0,
+        maxValue: this.resolution-1,
         labels:
           {
               formatFunction: (value: any): string => {
+                // console.log('formatFunction: ', value, value*step);
+                value = this.w1.gpsCoord[value].gps_time;
                   let hh:number = Math.trunc(value/3600);
                   let mm:number = Math.trunc(value/60)-hh*60;
-                  let ss:number = value-hh*3600-mm*60;
+                  let ss:number = Math.trunc(value)-hh*3600-mm*60;
                   value = String(hh).padStart(2, '0') + ':' +
                     String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
                   return value;
@@ -496,6 +518,7 @@ export class AppComponent implements AfterViewInit {
             source: this.speedData,
             showToolTips: true,
             toolTipFormatFunction: (value: any, itemIndex: any, serie: any, group: any, categoryValue: any, categoryAxis: any) => {
+              console.log ('toolTipFormatFunction');
                 let dataItem = this.hrData[itemIndex];
                 let pos = {
                         lat: this.w1.gpsCoord[itemIndex].gps_lat,
@@ -589,19 +612,25 @@ export class AppComponent implements AfterViewInit {
     let coord = this.myChart.getItemCoord(0,0,index);
     this.currentX = coord['x'];
     let averageBand: string='';
-    // console.log ('coords=',coord);
+    // console.log ('getToolTip, coords=',coord);
+
     
     if (this.splitBegin >= 0 ) {
       let split: any;
-      split = { from: this.splitBegin, to: this.currentX}
+      split = { from: this.splitBegin, to: this.currentX, rect: this.currentRect}
       this.recessions[this.currentRecession] = split;
       this.setCurrentBand();
 
       let lapData = this.getLapInfos(0);
       averageBand = '<b>Split: ' + lapData['strTime'] + '<br />Distance: ' + lapData['dist'] +'</b><br />';
     }
+    let hh = Math.trunc(this.w1.gpsCoord[index].gps_time/3600);
+    let mm = Math.trunc(this.w1.gpsCoord[index].gps_time/60)-hh*60;
+    let ss = this.w1.gpsCoord[index].gps_time-hh*3600-mm*60;
+    ss = Math.round(ss*10)/10;
     return '<DIV style="text-align:left">'+averageBand+'<b>Index:</b> ' +
-                  index + '<br /><b>HR:</b> ' +
+                  index + '<br /><b>Time:</b> ' +
+                  String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0') + '<br /><b>HR:</b> ' +
                   this.hrData[index] + '<br /><b>Speed:</b> ' +
                   this.speedData[index] + '<br /><b>Altitude:</b> ' +
                   this.elevationData[index] + '<br /></DIV>';
@@ -611,6 +640,8 @@ export class AppComponent implements AfterViewInit {
     this.bands = [];
     this.Ymin = 0;
     this.Ymax = 0;
+    // this.removeBands ();
+
     if (this.Ymin == 0) {
       let idx:number = -1;
       for (let i=0; i<this.seriesGroups.length; i++) {
@@ -621,17 +652,78 @@ export class AppComponent implements AfterViewInit {
       if (idx>0) {
         this.Ymin = this.myChart.getValueAxisRect(idx)['y'];
         this.Ymax = <number>this.myChart.getValueAxisRect(idx)['height'];
+        this.xWidth = <number>this.myChart.getXAxisRect(idx)['width'];
       }
     }
-    for (let i = 0; i < this.recessions.length-1; i++) {
-        this.renderer.rect(this.recessions[i].from, 
-          this.Ymin, 
-          (this.recessions[i].to-this.recessions[i].from), 
-          this.Ymax, 
-          { fill: '#FFFF33',  opacity: 0.4});
+    if (!this.firstRefresh) {
+      for (let i = 0; i < this.recessions.length-1; i++) {
+          let band = this.renderer.rect(this.recessions[i].from, 
+            this.Ymin, 
+            (this.recessions[i].to-this.recessions[i].from), 
+            this.Ymax, 
+            { fill: '#FFFF33',  opacity: 0.4});
+          this.renderer.on(band, 'dblclick', () => { this.onDblClickBand(band) });
+      }
     }
     console.log('showBands recessions=',this.recessions);
+  }
 
+  showCurrentBand (x1: number, x2: number, visibility: boolean, color: string, lap: number) {
+
+    if (true) {
+      let idx:number = -1;
+      for (let i=0; i<this.seriesGroups.length; i++) {
+        if (typeof this.seriesGroups[i] !== 'undefined') {
+          idx = i;
+        }
+      }
+      if (idx>0) {
+        this.Ymin = this.myChart.getValueAxisRect(idx)['y'];
+        this.Ymax = <number>this.myChart.getValueAxisRect(idx)['height'];
+        this.xWidth = <number>this.myChart.getXAxisRect(idx)['width'];
+      }
+    }
+    let opacity: number=0;
+
+    // console.log ('showCurrentBand, visi=', visibility);
+    if (visibility) {
+      opacity=0.4;
+      this.currentRect = this.renderer.rect(this.xMin+x1, 
+            this.Ymin, 
+            (x2-x1), 
+            this.Ymax, 
+            { fill: color,  opacity: opacity});
+      this.toolTipTrends = this.getToolTip(this.w1.lap[lap].lap_start);
+      // console.log ('showCurrentBand, myToolTip=',this.myToolTip);
+      // this.myToolTip.open();
+    } else {
+      this.renderer.attr(this.currentRect, { width: 0 });
+      // this.myToolTip.close();
+    }
+    
+
+  }
+
+  resizeBands( deltaX: number ) {
+    for (let i = 0; i < this.recessions.length-1; i++) {    
+      let ratio = ( this.xWidth + deltaX) / (this.xWidth);
+      console.log('ratio=',ratio);
+      let xx = (this.recessions[i].from-this.xMin)*ratio + this.xMin;
+      let hh = (this.recessions[i].to-this.xMin)*ratio + this.xMin;
+      console.log('xx=',xx);
+      this.recessions[i].from =  Math.round(xx);
+      this.recessions[i].to =  Math.round(hh);
+    }
+  }
+
+  removeBands () {
+    /*
+    for (let i = 0; i < this.recessions.length-1; i++) {
+      this.renderer.attr(this.recessions[i].rect, { fill: 'red', opacity: 0});
+      let fillColor = this.renderer.getAttr(this.recessions[i].rect, 'fill');
+      console.log('Erase band: ', this.recessions[i].rect, 'fill=',fillColor);
+    }
+    */
   }
 
   setCurrentBand () {
@@ -645,7 +737,6 @@ export class AppComponent implements AfterViewInit {
         (this.currentX-startX), 
         this.myChart.getValueAxisRect(0)['height'], 
         { fill: '#FFFF33',  opacity: 0.4});
-
     } else {
       startX = this.saveCurrentX;
       if (this.currentX > this.splitBegin ) {
@@ -658,7 +749,9 @@ export class AppComponent implements AfterViewInit {
   updateWatchLapTable (update: number) {
     console.log('>>> updateWatchLapTable');
     this.resetLapsColor();
+    this.removeBands ();
     this.currentTable = 0;
+
     if (typeof this.w1.watchLaps != "undefined") {
       this.w1.lap = Object.assign([], this.w1.watchLaps);
       this.lapSize = this.w1.lap.length;
@@ -666,6 +759,7 @@ export class AppComponent implements AfterViewInit {
     }
     this.currentIcon = "";
     this.srv.pushWorkout(this.w1.lap, this.selectedTable);
+    this.myChart.refresh();
   }
 
   updateSplitLapTable() {
@@ -677,6 +771,7 @@ export class AppComponent implements AfterViewInit {
     }
     this.currentTable = 2;
     this.selectedTable = 2;
+    this.myChart.refresh();
     this.currentIcon = this.squarePin2;
     this.w1.lap = [];
     this.lap_end_index = 0;
@@ -691,11 +786,18 @@ export class AppComponent implements AfterViewInit {
     for (let i =0; i< this.w1.splits.length; i++) {
       let l1: Lap = new Lap();
 
+      let distance: number;
+      if (Math.round(this.w1.splits[i].split_distance/1000) <1) {  
+        distance = Math.round(this.w1.splits[i].split_distance/10)*10;
+      } else {
+        distance = Math.round(this.w1.splits[i].split_distance/1000)*1000;
+      }
+
       l1 = {
         lap_index: k++,
         lap_start_index: 0,
         lap_end_index: 0,
-        lap_distance: Math.round(this.w1.splits[i].split_distance/1000)*1000,
+        lap_distance: distance,
         lap_time: this.w1.splits[i].split_time,
         lap_start_date: currentDate.toString(),
         lap_cumulatedTime: "00:00:00",
@@ -755,9 +857,15 @@ export class AppComponent implements AfterViewInit {
     if ( (this.currentTable==0) ) {
       this.w1.watchLaps = Object.assign([], this.w1.lap);
       console.log('copy watchLaps=',this.w1.watchLaps);
+    }     
+    if ( (this.currentTable!=1) ) {
+      // this.myChart.refresh();
+      this.showBands();
     }
+
     this.currentTable = 1;
     this.selectedTable = 1;
+    this.firstRefresh = false;
     this.currentIcon = this.squarePin;
     this.w1.lap = [];
     this.lap_end_index = 0;
@@ -822,6 +930,15 @@ export class AppComponent implements AfterViewInit {
     // console.log('index=',index);
     return ( Math.round(index) );
   }
+
+
+  convertIndexToAbs (idx:number) {
+    let w:string|number = <number>this.myChart.getXAxisRect(0)['width'];
+    let x:number = (idx*w)/this.w1.gpsCoord.length;
+    // console.log('convertIndexToAbs, x=', x);
+    return ( x );
+  }
+
 
   draw = (renderer: any, rect: any): void => {
     this.renderer = renderer;
@@ -903,6 +1020,7 @@ export class AppComponent implements AfterViewInit {
 
   resetLapsColor () {
     console.log ('resetLapsColor, resolution=',this.resolution);
+    this.bands = [];
     for (let i=0;i<this.resolution;i++) {
       this.w1.gpsCoord[i].strokeWeight = 2;
       this.w1.gpsCoord[i].color = '#2196f3';
@@ -911,30 +1029,36 @@ export class AppComponent implements AfterViewInit {
 
 
   onLapSelected (lap: lapSelection) {
-    // console.log(">>>> onLapSelected, lap=", numLap);
+    console.log(">>>> onLapSelected, lap=", lap.lap_idx);
     let strokeWeight:number;
-    let color:string;
+    let lineColor:string;
+    let bandColor: string;
     let numLap=lap.lap_idx;
+    let visibility: boolean = true;
     if (lap.lap_idx > 0) {
       strokeWeight = 4;
       if (lap.isCurrent) {
-        color = 'black';
+        lineColor = 'black';
+        bandColor = 'gray ';
       } else {
         switch(this.selectedTable) { 
            case 0: { 
-              color = 'red';
+              lineColor = 'red';
+              bandColor = lineColor;
               break; 
            } 
            case 1: { 
-              color = 'yellow';
+              lineColor = 'yellow';
+              bandColor = lineColor;
               break; 
            }
            case 2: { 
-              color = '  #8A2BE2';
+              lineColor = '  #8A2BE2';
+              bandColor = lineColor;
               break; 
            }  
            default: { 
-              color = 'red';
+              lineColor = 'red';
               break; 
            } 
          } 
@@ -942,8 +1066,12 @@ export class AppComponent implements AfterViewInit {
     } else {
       numLap= lap.lap_idx * (-1);
       strokeWeight = 2;
-      color = '#2196f3';
+      lineColor = '#2196f3';
+      visibility = false;
     }
+
+    if (lap.toClear) visibility = false;
+
     numLap = numLap -1;
     let i:number=0;
     
@@ -952,9 +1080,16 @@ export class AppComponent implements AfterViewInit {
     // console.log(">>>> onLapSelected, speed=",speed);
     for(i = start_idx;i<end_idx;i++) {
       this.w1.gpsCoord[i].strokeWeight = strokeWeight;
-      this.w1.gpsCoord[i].color = color;
+      this.w1.gpsCoord[i].color = lineColor;
       // console.log(">>>> onLapSelected, i=",i,"speed=",this.w1.gpsCoord[i].speed);
     }
+
+    let x1 = this.convertIndexToAbs(start_idx);
+    let x2 = this.convertIndexToAbs(end_idx);
+
+    if (lap.isCurrent || lap.lap_idx< 0 || lap.toClear) this.showCurrentBand (x1, x2, visibility, bandColor, numLap);
+    if (!lap.isCurrent && lap.lap_idx > 0) this.bands[numLap] = this.currentRect;
+
   }
 
   onTableSelect (event: any) {
@@ -1016,9 +1151,16 @@ export class AppComponent implements AfterViewInit {
     this.showSettings = !this.showSettings;
   }
 
+  onDblClickBand (band : any) {
+
+    console.log ('onDblClickBand: ', band);
+    // this.renderer.attr(band { width:  10});
+
+  }
+
   onChartEvent(event: any): any {
         let eventData;
-        // console.log('chartEvent: ',event.type);
+        console.log('chartEvent: ',event.type);
         if (event) {
             if (event.args) {
                 if (event.type == 'toggle') {
@@ -1041,12 +1183,14 @@ export class AppComponent implements AfterViewInit {
                     console.log ('splitBegin=',this.splitBegin);
                   } 
             } else if (event.type == 'mouseup') {
+
                   if ( (this.splitBegin != this.currentX)  && (this.currentX - this.splitBegin)>0 )  {
                     let split: any;
-                    split = { from: this.splitBegin, to: this.currentX }
+                    split = { from: this.splitBegin, to: this.currentX, rect: this.currentRect }
                     if( this.recessions.indexOf(split) === -1)  {
                       console.log ('push split', split);
                       this.recessions.push(split);
+                      this.renderer.on(this.currentRect, 'dblclick', () => { this.onDblClickBand(this.currentRect) });
                       this.updateCustomLapTable();
                     }
                     this.splitBegin = -1;
@@ -1056,6 +1200,20 @@ export class AppComponent implements AfterViewInit {
                     this.splitBegin = -1;
                     this.saveCurrentX = -1;
                   }
+            } 
+            if (event.type == 'refreshBegin') {
+                console.log ('>> refreshBegin => removeBands');
+                this.removeBands();
+            }
+            if (event.type == 'refreshEnd') {
+                console.log ('>> refreshEnd => showBands');
+
+                if (typeof this.myChart !== 'undefined') {
+                  this.xMin = this.myChart.getXAxisRect(0)['x'];
+                  this.xWidth = <number>this.myChart.getXAxisRect(0)['width'];
+                  console.log ('>> xWidth =', this.xWidth);
+                }
+                if (this.currentTable==1) this.showBands();
             }
         }
   }
@@ -1082,14 +1240,14 @@ export class AppComponent implements AfterViewInit {
     }
     this.selectedWindow.px = event.clientX;
     this.selectedWindow.py = event.clientY;
+    this.resizeBands (offsetX);
   }
 
   @HostListener('document:mouseup', ['$event'])
   onCornerRelease(event: MouseEvent) {
     this.selectedWindow.draggingWindow = false;
     this.selectedWindow.draggingCorner = false;
-    if (this.redrawBands)
-      this.showBands();
+    console.log('>>> onCornerRelease');
   }
 
   @HostListener('window:resize', ['$event'])
@@ -1134,9 +1292,11 @@ export class Window {
   draggingWindow: boolean;
   minArea: number;
   resizer: Function;
+  id: number;
 
-  constructor(private father: AppComponent) {
+  constructor(private father: AppComponent, id: number) {
     this.app = father;
+    this.id = id;
   }
 
   area() {
@@ -1144,7 +1304,7 @@ export class Window {
   }
 
   onWindowPress(event: MouseEvent, id: number) {
-    if (!this.app.onChartArea) {
+     if (!this.app.onChartArea) {
       this.app.selectedWindow = this;
       this.draggingWindow = true;
       this.px = event.clientX;
@@ -1178,27 +1338,28 @@ export class Window {
     this.y += offsetY;
     this.width -= offsetX;
     this.height -= offsetY;
-    this.father.redrawBands = true;
+    // if (this.id==2) this.father.redrawBands = true;
   }
 
   topRightResize(offsetX: number, offsetY: number) {
     this.y += offsetY;
     this.width += offsetX;
     this.height -= offsetY;
-    this.father.redrawBands = true;
+    // if (this.id==2) this.father.redrawBands = true;
+    console.log('topRightResize', this.id);
   }
 
   bottomLeftResize(offsetX: number, offsetY: number) {
     this.x += offsetX;
     this.width -= offsetX;
     this.height += offsetY;
-    this.father.redrawBands = true;
+    // if (this.id==2) this.father.redrawBands = true;
   }
 
   bottomRightResize(offsetX: number, offsetY: number) {
     this.width += offsetX;
     this.height += offsetY;
-    this.father.redrawBands = true;
+    // if (this.id==2) this.father.redrawBands = true;
   }
 
   onCornerClick(event: MouseEvent, resizer?: Function) {

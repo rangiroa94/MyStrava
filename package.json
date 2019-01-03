@@ -26,11 +26,14 @@
     "@angular/router": "^6.0.3",
     "chart.js": "^2.7.3",
     "core-js": "^2.4.1",
+    "detect-browser": "^3.0.1",
     "jqwidgets-scripts": "^6.2.0",
     "ng2-charts": "^1.6.0",
+    "ng2-responsive": "^0.8.4",
     "npm": "^6.4.1",
     "rxjs": "^6.2.0",
     "vindue": "^4.0.0",
+    "web-animations-js": "^2.3.1",
     "zone.js": "^0.8.19"
   },
   "devDependencies": {

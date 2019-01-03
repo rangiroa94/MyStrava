@@ -9,9 +9,11 @@
       {{w1.name}}: {{w1.act.time}}, {{w1.act.distance}} km        <br>
       {{w1.dayTime}}
     </div>
-    <svg class="iconActivity" height="512" width="512"> 
+    <!--
+    <svg class="iconActivity" style="border: 1;"> 
       <path [attr.d]="typeIcon[w1.act.type].path" [attr.fill]="typeIcon[w1.act.type].color" />
      </svg>
+    -->
   </div>
   <button class="header3" mat-icon-button (click)="onClickSettings()">
       <mat-icon aria-label="Settings">settings</mat-icon>
@@ -36,7 +38,8 @@
       text-align:: middle;
       display: inline-block;
       *display: inline;
-      zoom: 1
+      zoom: 1;
+      border: 1;
   }
 
   .headerIcon {
@@ -47,8 +50,8 @@
   }
 
   .iconActivity {
-      left: 150px;
-      zoom: 0.08
+      zoom: 1;
+      width : 150;
   }
 
   #HeadContainer {
@@ -64,7 +67,7 @@
     width:90%; 
     height:90%;
     background-color: #fff;
-    padding: 5px;
+    padding: 2px;
     border: 1px solid #999;
     text-align: center;
     font-family: 'Roboto','sans-serif';
@@ -126,6 +129,7 @@
   #win-top-right-resize { top: 0px; right: 0px; }
   #win-bottom-left-resize { bottom: 0px; left: 0px; }
   #win-bottom-right-resize { bottom: 0px; right: 0px; }
+  #win-header {top: 0px; left: 0px;width: 100%; height: 10px; cursor: move;}
 
   ::ng-deep .mat-checkbox .mat-checkbox-frame {
     border-color: violet;
@@ -135,13 +139,15 @@
     background-color: darkcyan !important;
   }
 
-  .charts {
-      width: 100%;
+  .myChartDiv {
+      width: 80%;
       height: 100%;
       margin: 0px;
       border: 4px;
       overflow: hidden; /*  Disable scrollbars */
       position: absolute;
+      padding: 5px;
+      cursor: move;
     }
 
   #chartToolTip {
@@ -212,12 +218,13 @@
                    [style.height.px]='winLap.height'
                    (mousedown)='winLap.onWindowPress($event,1)'
                    (mousemove)='winLap.onWindowDrag($event,1)'
-                   (mouseenter)='winTrends.onWindowEnter($event,1)'
+                   (mouseenter)='winLap.onWindowEnter($event,1)'
                    class='win'>
         <div (mousedown)='winLap.onCornerClick($event, winLap.topLeftResize)' id='win-top-left-resize' class='win-corner-resize-topLeft'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.topRightResize)' id='win-top-right-resize' class='win-corner-resize-topRight'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize-bottomLeft'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize-bottomRight'></div> 
+        <div id="win-header"></div>
  
             <mat-form-field id='tableSelect'>
               <mat-select placeholder="" [(ngModel)]="selectedTable"
@@ -249,15 +256,16 @@
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize-bottomLeft'></div>    
         <div (mousedown)='winTrends.onCornerClick($event, winTrends.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize-bottomRight'></div> 
 
-        <jqxTooltip id="chartToolTip" theme='shinyblack'
+        <jqxTooltip #myToolTip id="chartToolTip" theme='shinyblack'
                 [position]="'top-left'" [name]="'ToolTip'"
                 [content]="toolTipTrends">
 
-          <jqxChart #myChart *ngIf="done"
+          <jqxChart #myChart class='myChartDiv' *ngIf="done"
             (mousedown)="onChartEvent($event)" (onToggle)="onChartEvent($event)"
             (mouseleave)="onChartEvent($event)" (mouseenter)="onChartEvent($event)" 
-            (mouseup)="onChartEvent($event)"
-              [width]="winTrends.width" [height]="winTrends.height"
+            (mouseup)="onChartEvent($event)" (onRefreshBegin)="onChartEvent($event)"
+            (onRefreshEnd)="onChartEvent($event)"
+              [width]="winTrends.width-10" [height]="winTrends.height-10"
               [title]="'Trends'"
               [description]="''" 
               [toolTipShowDelay]="'250'" [toolTipHideDelay]="'2000'" 
@@ -277,7 +285,7 @@
           [style.height.px]='winInfos.height'
           (mousedown)='winInfos.onWindowPress($event,3)'
           (mousemove)='winInfos.onWindowDrag($event,3)'
-          (mouseenter)='winTrends.onWindowEnter($event,3)'
+          (mouseenter)='winInfos.onWindowEnter($event,3)'
           class='win'>
         <div (mousedown)='winInfos.onCornerClick($event, winInfos.topLeftResize)' id='win-top-left-resize' class=''></div>    
         <div (mousedown)='winInfos.onCornerClick($event, winInfos.topRightResize)' id='win-top-right-resize' class=''></div>    

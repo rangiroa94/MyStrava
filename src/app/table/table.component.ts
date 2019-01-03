@@ -60,7 +60,7 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
         for (let i=0; i < this.srv.nbLaps ; i++) {
           if (this.selectedRows[this.srv.selectTable][i]) {
             console.log('Restore color for lap: ',(i+1));
-            lapSelect = { lap_idx: i+1, isCurrent: false};
+            lapSelect = { lap_idx: i+1, isCurrent: false, toClear: false};
             this.lapSelected.emit(lapSelect);
           }
           this.lapInfos.emit(this.infosLap[this.srv.selectTable]);
@@ -129,7 +129,7 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
             } else {
               sign = -1;
             }
-            lapSelect = { lap_idx: row.lap_index*sign, isCurrent: false};
+            lapSelect = { lap_idx: row.lap_index*sign, isCurrent: false, toClear: false};
             this.lapSelected.emit(lapSelect);
             let sumTime: number=0;
             let averageTime: number=0;
@@ -209,16 +209,16 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
 
   mouseEnterRow(row: Lap) {
     let lapSelect: lapSelection;
-    lapSelect = { lap_idx: row.lap_index, isCurrent: true};
+    lapSelect = { lap_idx: row.lap_index, isCurrent: true, toClear: false};
     this.lapSelected.emit(lapSelect);
    } 
 
   mouseLeaveRow(row: Lap) {
     let lapSelect: lapSelection;
     if ( !this.selectedRows[this.srv.selectTable][row.lap_index-1] ) {
-      lapSelect = { lap_idx: row.lap_index*-1, isCurrent: false};
+      lapSelect = { lap_idx: row.lap_index*-1, isCurrent: false, toClear: true};
     } else {
-      lapSelect = { lap_idx: row.lap_index, isCurrent: false};
+      lapSelect = { lap_idx: row.lap_index, isCurrent: false, toClear: true};
     }
     this.lapSelected.emit(lapSelect);
   }

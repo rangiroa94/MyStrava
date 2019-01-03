@@ -14,6 +14,7 @@ import { jqxTooltipComponent } from "jqwidgets-scripts/jqwidgets-ts/angular_jqxt
 
 import { WorkoutService } from './workout.service';
 
+
 @NgModule({
   declarations: [
     AppComponent, 

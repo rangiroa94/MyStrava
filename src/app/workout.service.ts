@@ -86,4 +86,5 @@ export class Workout {
 export interface lapSelection {
   lap_idx: number;
   isCurrent: boolean;
+  toClear: boolean;
 }

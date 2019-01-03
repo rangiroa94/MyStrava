@@ -3,7 +3,7 @@
 "name": "Course à pied le soir",
  "act": [
 	{"label": "Course Nogent","distance": "20783","strTime": "2018-11-04 08:06:41",
-	"time": "1:35:46","resolution": "1000","type": "Run"}
+	"time": "01:35:46","resolution": "1000","type": "Run"}
 	],
 "laps": [
     {"lap_index": 1, "lap_distance": 7530.33, "lap_time": "00:39:33", "lap_start_date": "2018-11-04 08:06:41+00:00", "lap_start_index": 0, "lap_end_index": 2372}, 
