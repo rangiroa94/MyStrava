@@ -66,6 +66,19 @@ export class Lap {
   lap_total_elevation_gain: number;
   lap_start: number;
   lap_end:number;
+  lap_slope: number;
+}
+
+export class infos {
+  total_dist: number;
+  total_time: string;
+  average_time: string;
+  average_speed: string;
+  average_HR: number;
+  slope: number;
+  elevation: number;
+  nbValues: number;
+  show: boolean;
 }
 
 export class Workout {
@@ -87,4 +100,6 @@ export interface lapSelection {
   lap_idx: number;
   isCurrent: boolean;
   toClear: boolean;
+  toRemove: boolean;
 }
+

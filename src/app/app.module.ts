@@ -3,7 +3,9 @@ import { NgModule } from '@angular/core';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatTabsModule, MatTableModule, MatButtonModule, MatSelectModule,
-	MatIconModule, MatDialogModule, MatCheckboxModule } from '@angular/material';
+	MatIconModule, MatDialogModule, MatCheckboxModule, MatProgressSpinnerModule,
+  MatProgressBarModule } from '@angular/material';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { AppComponent } from './app.component';
 import { AgmCoreModule, GoogleMapsAPIWrapper } from '@agm/core';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -34,8 +36,11 @@ import { WorkoutService } from './workout.service';
 	MatDialogModule,
 	MatCheckboxModule,
   MatIconModule, 
+  MatProgressSpinnerModule,
+  DragDropModule,
   FormsModule,      
 	BrowserAnimationsModule,
+  MatProgressBarModule,
 	HttpClientModule
   ],
   providers: [GoogleMapsAPIWrapper,

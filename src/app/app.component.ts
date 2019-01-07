@@ -12,8 +12,7 @@ import { Chart } from 'chart.js';
 import { jqxChartComponent  } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
 import { jqxTooltipComponent  } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxtooltip';
 import { WorkoutService, Gps, Heartrate, Activity, Lap, Workout, 
-  lapSelection, Split } from './workout.service';
-import { DOCUMENT } from '@angular/common';
+  lapSelection, Split, infos } from './workout.service';
 
 
 declare var google: any;
@@ -47,10 +46,14 @@ export class AppComponent implements AfterViewInit {
   @ViewChild('myToolTip') myToolTip: jqxTooltipComponent ;
   title = 'MyStrava';
   /* url : string = 'http://fakarava94.no-ip.org:3000/workout/'; */
-  url: string = '/strava2/workoutDetail/';
+  urlbase: string = '/strava2/';
+  urlworkout: string = 'workoutDetail/';
+  urlprogress: string = 'getProgress/';
   wid: string;
   lat: number = 48.832929;
   lng: number = 2.473295;
+  progressValue: number = 2;
+  progressTimer: any;
 
   x: number;
   y: number;
@@ -80,6 +83,8 @@ export class AppComponent implements AfterViewInit {
     {title: 'Average time', value: ''},
     {title: 'Average Pace', value: ''},
     {title: 'Total dist. (km)', value: ''},
+    {title: 'Slope', value: ''},
+    {title: 'Elevation', value: ''},
   ];
   displayedColumns: string[] = ['title', 'value'];
   showLaps: boolean = true;  
@@ -177,23 +182,37 @@ export class AppComponent implements AfterViewInit {
       this.wid = ""
     }
 
+    this.showProgress();
     this.getWorkout();
+  }
+
+  public showProgress() {
+        this.progressTimer = setInterval(() => {
+          console.log ('Check progress ...');
+          if (this.wid != "") {
+            this.http.get(this.urlbase + this.urlprogress).subscribe((p: Progress) => {
+              console.log ('Receive progress value=', p.value);
+              if (p.value>=55){ this.progressValue += 5; } else {this.progressValue = p.value;}
+              }
+            );
+          }
+      }, 1000);
   }
           
   public getWorkout() {
     
     if (this.wid != "") {
-      this.url = this.url + this.wid;
+      this.urlworkout = this.urlbase + this.urlworkout + this.wid;
       /*
       this.http.get(this.url).toPromise().then((res) => {
         console.log(res.json());
       });
       */
     } else {
-      this.url = 'assets/mockup.json';
+      this.urlworkout = 'assets/mockup.json';
     }
       
-    this.http.get(this.url).subscribe((w: Workout) => { 
+    this.http.get(this.urlworkout).subscribe((w: Workout) => { 
       this.w1 = w;
       console.log('w=',w);
 
@@ -241,7 +260,8 @@ export class AppComponent implements AfterViewInit {
           lap_pace_zone: item.lap_pace_zone,
           lap_total_elevation_gain: item.lap_total_elevation_gain,
           lap_start: 0,
-          lap_end:0
+          lap_end:0,
+          lap_slope: 0
         };
         this.w1.lap.push(l1);
       });
@@ -289,14 +309,26 @@ export class AppComponent implements AfterViewInit {
 
       for (let i =0; i< this.w1.lap.length; i++) {
         let avgHR: number = 0;
+        let deltaH: number = 0;
+        let deltaD: number = 0;
+        let elevationGain: number = 0;
+        let slope: number = 0;
         for (let j=this.w1.lap[i].lap_start; j<=this.w1.lap[i].lap_end;j++) {
           avgHR+=this.hrData[j];
+          if (j>this.w1.lap[i].lap_start) {
+            deltaH += this.elevationData[j] - this.elevationData[j-1];
+            deltaD += this.distanceData[j] - this.distanceData[j-1];
+            elevationGain += this.elevationData[j] - this.elevationData[j-1];
+          }
         }
         avgHR=avgHR/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
         avgHR = Math.trunc(avgHR);
+        // console.log ('deltaH=',deltaH,'deltaD=',deltaD);
+        slope = (deltaH) / (Math.sqrt(Math.pow(deltaD,2)-Math.pow(deltaH,2))) *100;
         this.w1.lap[i].lap_average_HR = Math.round(avgHR);
+        this.w1.lap[i].lap_total_elevation_gain = Math.round(elevationGain);
+        this.w1.lap[i].lap_slope = Math.round(slope*10)/10;
       }
-
       console.log('w1=', this.w1);
       console.log('lapSize=', this.lapSize);
 
@@ -327,6 +359,7 @@ export class AppComponent implements AfterViewInit {
 
       this.done = 1;
       this.w1.loaded = true;
+      clearInterval(this.progressTimer);
 
       this.displayTrends();
 
@@ -380,7 +413,7 @@ export class AppComponent implements AfterViewInit {
     this.winLap.y = 130;
     this.winLap.px = 0;
     this.winLap.py = 0;
-    this.winLap.width = 300;
+    this.winLap.width = 310;
     this.winLap.height = 500;
     this.winLap.draggingCorner = false;
     this.winLap.draggingWindow = false;
@@ -401,7 +434,7 @@ export class AppComponent implements AfterViewInit {
     this.winInfos.px = 0;
     this.winInfos.py = 0;
     this.winInfos.width = 300;
-    this.winInfos.height = 102;
+    this.winInfos.height = 150;
     this.winInfos.draggingCorner = false;
     this.winInfos.draggingWindow = false;
     this.winInfos.minArea = 20000;
@@ -617,12 +650,13 @@ export class AppComponent implements AfterViewInit {
     
     if (this.splitBegin >= 0 ) {
       let split: any;
-      split = { from: this.splitBegin, to: this.currentX, rect: this.currentRect}
+      split = { from: this.splitBegin, to: this.currentX, idx1: this.splitBeginIndex , idx2: index , rect: this.currentRect}
       this.recessions[this.currentRecession] = split;
       this.setCurrentBand();
 
       let lapData = this.getLapInfos(0);
-      averageBand = '<b>Split: ' + lapData['strTime'] + '<br />Distance: ' + lapData['dist'] +'</b><br />';
+      averageBand = '<b>Split: ' + lapData['strTime'] + '<br />Distance: ' + lapData['dist'] +
+      '<br />Elevation Gain: ' + lapData['elevationGain'] +'<br />Slope: ' + lapData['slope'] +' %<br /></b>';
     }
     let hh = Math.trunc(this.w1.gpsCoord[index].gps_time/3600);
     let mm = Math.trunc(this.w1.gpsCoord[index].gps_time/60)-hh*60;
@@ -693,7 +727,6 @@ export class AppComponent implements AfterViewInit {
             (x2-x1), 
             this.Ymax, 
             { fill: color,  opacity: opacity});
-      this.toolTipTrends = this.getToolTip(this.w1.lap[lap].lap_start);
       // console.log ('showCurrentBand, myToolTip=',this.myToolTip);
       // this.myToolTip.open();
     } else {
@@ -711,8 +744,13 @@ export class AppComponent implements AfterViewInit {
       let xx = (this.recessions[i].from-this.xMin)*ratio + this.xMin;
       let hh = (this.recessions[i].to-this.xMin)*ratio + this.xMin;
       console.log('xx=',xx);
-      this.recessions[i].from =  Math.round(xx);
-      this.recessions[i].to =  Math.round(hh);
+
+      let idx1:number = this.recessions[i].idx1;
+      let idx2:number = this.recessions[i].idx2;
+      let t1 = this.w1.gpsCoord[idx1].gps_time*ratio;
+      let t2 = this.w1.gpsCoord[idx2].gps_time*ratio;
+      this.recessions[i].from =  this.myChart.getXAxisRect(0)['x']+this.convertIndexToAbs(idx1);
+      this.recessions[i].to =  this.myChart.getXAxisRect(0)['x']+this.convertIndexToAbs(idx2);
     }
   }
 
@@ -800,21 +838,22 @@ export class AppComponent implements AfterViewInit {
         lap_distance: distance,
         lap_time: this.w1.splits[i].split_time,
         lap_start_date: currentDate.toString(),
-        lap_cumulatedTime: "00:00:00",
+        lap_cumulatedTime: "",
         lap_average_speed: 0,
         lap_average_HR: 0,
         lap_average_cadence: 0,
         lap_pace_zone: 0,
         lap_total_elevation_gain: 0,
         lap_start: 0,
-        lap_end: 0
+        lap_end: 0,
+        lap_slope: 0
       };
       // console.log ('updateSplitLapTable, split_time=', this.w1.splits[i].split_time);
       let t = new Date('1970-01-01T' + this.w1.splits[i].split_time + 'Z');
       currentTime += t.getTime()/1000;
       currentDate = new Date(currentTime*1000);
 
-      // console.log ('updateSplitLapTable, lap_start_date=', currentTime, currentDate.toString());
+      // console.log ('updateSplitLapTable, cumulatedTime=', cumulatedTime, currentDate.toString());
       this.w1.lap.push(l1);
     }
 
@@ -828,19 +867,33 @@ export class AppComponent implements AfterViewInit {
       console.log ('updateSplitLapTable, w1.lap=', this.w1.lap);
 
       for (let i =0; i< this.w1.lap.length; i++) {
+        
         let avgSpeed: number = 0;
         let avgHR: number = 0;
+        let elevationGain: number = 0;
+        let deltaH: number = 0;
+        let deltaD: number = 0;
+        let slope : number = 0;
         for (let j=this.w1.lap[i].lap_start; j<=this.w1.lap[i].lap_end;j++) {
           avgSpeed+=this.speedData[j];
           avgHR+=this.hrData[j];
+          if (j>this.w1.lap[i].lap_start) {
+            elevationGain += this.elevationData[j] - this.elevationData[j-1];
+            deltaH += this.elevationData[j] - this.elevationData[j-1];
+            deltaD += this.distanceData[j] - this.distanceData[j-1];
+          }
         }
+        slope = (deltaH) / (Math.sqrt(Math.pow(deltaD,2)-Math.pow(deltaH,2))) *100;
+
         avgSpeed=avgSpeed/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
         avgSpeed = Math.trunc(avgSpeed*100)/100;
         avgHR=avgHR/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
-        avgHR = Math.trunc(avgHR);
+        avgHR = Math.trunc(avgHR); 
         // console.log('avgSpeed1=',avgSpeed);
         this.w1.lap[i].lap_average_speed = avgSpeed;
         this.w1.lap[i].lap_average_HR = Math.round(avgHR);
+        this.w1.lap[i].lap_total_elevation_gain= Math.round(elevationGain);
+        this.w1.lap[i].lap_slope= Math.round(slope*10)/10;
        }
 
     }
@@ -869,6 +922,8 @@ export class AppComponent implements AfterViewInit {
     this.currentIcon = this.squarePin;
     this.w1.lap = [];
     this.lap_end_index = 0;
+    let cumulatedTime: number = 0;
+    let elevationGain: number = 0;
     let k = 1;
     let beginTime: number = this.startHour;
     for (let i = this.recessions.length-1; i >0 ; i--) {
@@ -884,6 +939,7 @@ export class AppComponent implements AfterViewInit {
       avgSpeed = Math.trunc(avgSpeed*100)/100;
       avgHR=Math.round(avgHR/(lapData['idx2']-lapData['idx1']+1));
       console.log('avgSpeed1=',avgSpeed);
+      
       l1 = {
         lap_index: k++,
         lap_start_index: lapData['idx1'],
@@ -891,25 +947,42 @@ export class AppComponent implements AfterViewInit {
         lap_distance: lapData['dist'],
         lap_time: lapData['strTime'],
         lap_start_date: (beginTime+lapData['startTime']).toString(),
-        lap_cumulatedTime: "00:00:00",
+        lap_cumulatedTime: "",
         lap_average_speed: avgSpeed,
         lap_average_HR: avgHR,
         lap_average_cadence: 0,
         lap_pace_zone: 0,
-        lap_total_elevation_gain: 0,
+        lap_total_elevation_gain: lapData['elevationGain'],
         lap_start: lapData['idx1'],
-        lap_end:lapData['idx2']
+        lap_end:lapData['idx2'],
+        lap_slope: lapData['slope']
       };
-      console.log('splitLap=',l1, 'lap_start_date=',l1.lap_start_date);
+      // console.log('splitLap=',l1, 'lap_start_date=',l1.lap_start_date,'cumulatedTime=',cumulatedTime);
+
       this.w1.lap.push(l1);
       this.lapSize = this.w1.lap.length;
       this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end_index;
-      this.w1.lap.sort(this.compare);
-      k = 1;
-      this.w1.lap.forEach(element => {element['lap_index']=k++;});
-      console.log ('updateCustomLapTable, w1.lap=', this.w1.lap);
 
      }
+
+     this.w1.lap.sort(this.compare);
+     k = 1;
+     this.w1.lap.forEach(element => {
+ 
+        let t = new Date('1970-01-01T' + element['lap_time'] + 'Z');
+        cumulatedTime += t.getTime()/1000;
+        let hh:number = Math.trunc(cumulatedTime/3600);
+        let mm:number = Math.trunc(cumulatedTime/60)-hh*60;
+        let ss:number = cumulatedTime-hh*3600-mm*60;
+        let totaltime = String(hh).padStart(2, '0') + ':' +
+                String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+        element['lap_cumulatedTime']=totaltime;
+        element['lap_index']=k++;
+     });
+
+      
+     console.log ('updateCustomLapTable, w1.lap=', this.w1.lap);
+
      this.srv.pushWorkout(this.w1.lap,this.selectedTable);
   }
 
@@ -924,18 +997,11 @@ export class AppComponent implements AfterViewInit {
     return comparison;
   }
 
-  convertAbstoIndex (x:number) {
-    let w:string|number = <number>this.myChart.getXAxisRect(0)['width'];
-    let index:number = (x-this.myChart.getXAxisRect(0)['x'])*this.w1.gpsCoord.length/w;
-    // console.log('index=',index);
-    return ( Math.round(index) );
-  }
-
-
   convertIndexToAbs (idx:number) {
     let w:string|number = <number>this.myChart.getXAxisRect(0)['width'];
     let x:number = (idx*w)/this.w1.gpsCoord.length;
-    // console.log('convertIndexToAbs, x=', x);
+    // console.log('convertIndexToAbs, x0=',this.myChart.getXAxisRect(0)['x']);
+    // console.log('convertIndexToAbs, idx=',idx, 'x=', x, 'w=', w);
     return ( x );
   }
 
@@ -946,8 +1012,8 @@ export class AppComponent implements AfterViewInit {
   };
 
   getLapInfos (idx: number) {
-    let idx1:number = this.convertAbstoIndex(this.recessions[idx].from);
-    let idx2:number = this.convertAbstoIndex(this.recessions[idx].to);
+    let idx1:number = this.recessions[idx].idx1;
+    let idx2:number = this.recessions[idx].idx2;
     console.log ('getLapInfos, idx1=', idx1, 'idx2=',idx2);
     let t = this.w1.gpsCoord[idx2].gps_time - this.w1.gpsCoord[idx1].gps_time;
     let hh:number = Math.trunc(t/3600);
@@ -956,7 +1022,37 @@ export class AppComponent implements AfterViewInit {
     let averageTime = String(hh).padStart(2, '0') + ':' +
       String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
     let dist:number = Math.round(this.distanceData[idx2] - this.distanceData[idx1]);
-    return {idx1: idx1, idx2: idx2, dist: dist, strTime: averageTime, startTime: idx1};
+
+    let elevationGain: number = 0;
+    let altitude: number = this.elevationData[idx1];
+    let avgSpeed: number = 0;
+    let avgHR: number = 0;
+    let slope : number = 0;
+    let deltaH: number = 0;
+    let deltaD: number = 0;
+    let nbSteps = 1;
+        
+    for (let i=idx1; i<=idx2; i++) {
+      if (i> idx1) {
+        deltaH += this.elevationData[i] - this.elevationData[i-1];
+        deltaD += this.distanceData[i] - this.distanceData[i-1];
+        elevationGain += this.elevationData[i] - this.elevationData[i-1];
+      }
+      avgSpeed+=this.speedData[i];
+      avgHR+=this.hrData[i];
+    }
+    // console.log ('deltaH=',deltaH);
+    // console.log ('deltaD=',deltaD);
+    slope = (deltaH) / (Math.sqrt(Math.pow(deltaD,2)-Math.pow(deltaH,2))) *100;
+    slope = Math.round (slope*10)/10;
+    elevationGain= Math.round(elevationGain);
+    avgSpeed=avgSpeed/(idx2-idx1+1);
+    avgSpeed = Math.trunc(avgSpeed*100)/100;
+    avgHR=avgHR/(idx2-idx1+1);
+    avgHR = Math.trunc(avgHR);
+    return {
+      idx1: idx1, idx2: idx2, dist: dist, strTime: averageTime, startTime: idx1 ,
+      elevationGain: elevationGain, avgSpeed: avgSpeed, avgHR: avgHR, slope: slope};
   }
 
   ngAfterViewInit() {
@@ -1040,6 +1136,7 @@ export class AppComponent implements AfterViewInit {
       if (lap.isCurrent) {
         lineColor = 'black';
         bandColor = 'gray ';
+        this.onChartArea = true;
       } else {
         switch(this.selectedTable) { 
            case 0: { 
@@ -1068,6 +1165,7 @@ export class AppComponent implements AfterViewInit {
       strokeWeight = 2;
       lineColor = '#2196f3';
       visibility = false;
+      this.onChartArea = false;
     }
 
     if (lap.toClear) visibility = false;
@@ -1089,6 +1187,19 @@ export class AppComponent implements AfterViewInit {
 
     if (lap.isCurrent || lap.lap_idx< 0 || lap.toClear) this.showCurrentBand (x1, x2, visibility, bandColor, numLap);
     if (!lap.isCurrent && lap.lap_idx > 0) this.bands[numLap] = this.currentRect;
+
+    if (lap.toRemove) {
+      console.log("Lap toRemove: ", lap.lap_idx);
+      /*
+      this.w1.lap.splice(lap.lap_idx, 1);
+      this.recessions.splice(lap.lap_idx, 1);
+      this.lapSize = this.w1.lap.length;
+      this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end_index;
+      console.log ('w1.lap=',this.w1.lap);
+      this.updateCustomLapTable (); 
+      this.myChart.refresh();
+      */
+    }
 
   }
 
@@ -1128,6 +1239,8 @@ export class AppComponent implements AfterViewInit {
     this.infosData[1]['value'] = data.average_time;
     this.infosData[2]['value'] = data.average_speed;
     this.infosData[3]['value'] = String(data.total_dist);
+    this.infosData[4]['value'] = String(data.slope);
+    this.infosData[5]['value'] = String(data.elevation);
     // console.log(">>>> onLapInfos, infosData=",this.infosData);
   }
 
@@ -1179,6 +1292,7 @@ export class AppComponent implements AfterViewInit {
              } else if (event.type == 'mousedown') {
                   if (this.splitBegin <0 ) {
                     this.splitBegin = this.currentX;
+                    this.splitBeginIndex = this.currentIndex;
                     this.currentRecession = this.bands.length;
                     console.log ('splitBegin=',this.splitBegin);
                   } 
@@ -1186,7 +1300,7 @@ export class AppComponent implements AfterViewInit {
 
                   if ( (this.splitBegin != this.currentX)  && (this.currentX - this.splitBegin)>0 )  {
                     let split: any;
-                    split = { from: this.splitBegin, to: this.currentX, rect: this.currentRect }
+                    split = { from: this.splitBegin, to: this.currentX, idx1: this.splitBeginIndex, idx2: this.currentIndex, rect: this.currentRect }
                     if( this.recessions.indexOf(split) === -1)  {
                       console.log ('push split', split);
                       this.recessions.push(split);
@@ -1269,15 +1383,9 @@ export interface infoTable {
   value: string;
 }
 
-export class infos {
-  total_dist: number;
-  total_time: string;
-  average_time: string;
-  average_speed: string;
-  nbValues: number;
-  show: boolean;
+export class Progress {
+    value: number;
 }
-
 
 export class Window {
   name: string;
@@ -1304,6 +1412,7 @@ export class Window {
   }
 
   onWindowPress(event: MouseEvent, id: number) {
+    console.log ('onWindowPress');
      if (!this.app.onChartArea) {
       this.app.selectedWindow = this;
       this.draggingWindow = true;
@@ -1314,6 +1423,7 @@ export class Window {
   }
 
   onWindowDrag(event: MouseEvent, id: number) {
+    // console.log ('onWindowDrag, draggingWindow=', this.draggingWindow);
     if (!this.draggingWindow) {
       return;
     }

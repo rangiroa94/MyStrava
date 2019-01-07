@@ -5,7 +5,8 @@ import { Observable, of } from 'rxjs';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { MatTabChangeEvent } from '@angular/material';
 import { DatePipe } from '@angular/common';
-import { WorkoutService, Workout, Lap, lapSelection } from '../workout.service';
+import { WorkoutService, Workout, Lap, lapSelection, infos } from '../workout.service';
+import {CdkDragDrop} from '@angular/cdk/drag-drop';
 
 @Component({
   selector: 'app-table',
@@ -25,7 +26,8 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   @Output() lapInfos: EventEmitter<infos>  = new EventEmitter<infos>();
   @Output() initTable: EventEmitter<number>  = new EventEmitter<number>();
   nameTab: String = 'Laps';
-  displayedColumns = ['lap_index', 'lap_distance', 'lap_time'];
+  displayedColumns = [];
+  dragDisabled: boolean = true;
   dataSource: lapDataSource;
   public currentExpandedRow: any;
   public expandRow: boolean = false;
@@ -60,12 +62,18 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
         for (let i=0; i < this.srv.nbLaps ; i++) {
           if (this.selectedRows[this.srv.selectTable][i]) {
             console.log('Restore color for lap: ',(i+1));
-            lapSelect = { lap_idx: i+1, isCurrent: false, toClear: false};
+            lapSelect = { lap_idx: i+1, isCurrent: false, toClear: false, toRemove: false};
             this.lapSelected.emit(lapSelect);
           }
           this.lapInfos.emit(this.infosLap[this.srv.selectTable]);
         }
-
+        if (this.srv.selectTable==1) {
+          this.displayedColumns = ['lap_index', 'lap_distance', 'lap_time', 'lap_remove'];
+          this.dragDisabled = false;
+        } else {
+          this.displayedColumns = ['lap_index', 'lap_distance', 'lap_time'];
+          this.dragDisabled = true;
+        }
         this.currentTable = this.srv.selectTable;
         this.nbLaps = this.srv.nbLaps;
         this.initOK = true;
@@ -129,13 +137,15 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
             } else {
               sign = -1;
             }
-            lapSelect = { lap_idx: row.lap_index*sign, isCurrent: false, toClear: false};
+            lapSelect = { lap_idx: row.lap_index*sign, isCurrent: false, toClear: false, toRemove: false};
             this.lapSelected.emit(lapSelect);
             let sumTime: number=0;
             let averageTime: number=0;
             let averageSpeed: number=0;
             let averageDist: number=0;
             let averageHR: number=0;
+            let slope: number=0;
+            let elevation: number=0;
             for (let i:number=0;i<this.wkt.lap.length;i++) {
               if (this.selectedRows[this.srv.selectTable][i]) {
                 this.infosLap[this.currentTable].nbValues++;
@@ -146,12 +156,16 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
                 averageDist = this.infosLap[this.currentTable].total_dist / this.infosLap[this.currentTable].nbValues;
                 averageSpeed = 1000*sumTime / this.infosLap[this.currentTable].total_dist;
                 averageHR += this.wkt.lap[i].lap_average_HR / this.wkt.lap.length;
+                slope += this.wkt.lap[i].lap_slope / this.wkt.lap.length;
+                elevation += this.wkt.lap[i].lap_total_elevation_gain;
                 //console.log('sumTime=',sumTime,'total_dist=',this.infosLap[this.currentTable].total_dist,
                 //  'averageSpeed=',averageSpeed);
               }
             }
             averageSpeed = Math.trunc(averageSpeed*100)/100;
             averageHR = Math.round(averageHR);
+            slope = Math.round(slope*10)/10;
+            elevation = Math.round(elevation);
 
             this.infosLap[this.currentTable].total_dist = Math.round (this.infosLap[this.currentTable].total_dist) /1000;
             console.log('toggleRow, row selected=',row.lap_index, 'sumTime=', sumTime);
@@ -179,6 +193,8 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
 
             this.infosLap[this.currentTable].total_time = totaltime;
             this.infosLap[this.currentTable].average_HR = averageHR;
+            this.infosLap[this.currentTable].slope = slope;
+            this.infosLap[this.currentTable].elevation = elevation;
             this.lapInfos.emit(this.infosLap[this.currentTable]);
             // console.log('toggleRow, selectedRows=',this.selectedRows);
         }
@@ -209,19 +225,29 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
 
   mouseEnterRow(row: Lap) {
     let lapSelect: lapSelection;
-    lapSelect = { lap_idx: row.lap_index, isCurrent: true, toClear: false};
+    lapSelect = { lap_idx: row.lap_index, isCurrent: true, toClear: false, toRemove: false};
     this.lapSelected.emit(lapSelect);
    } 
 
   mouseLeaveRow(row: Lap) {
     let lapSelect: lapSelection;
     if ( !this.selectedRows[this.srv.selectTable][row.lap_index-1] ) {
-      lapSelect = { lap_idx: row.lap_index*-1, isCurrent: false, toClear: true};
+      lapSelect = { lap_idx: row.lap_index*-1, isCurrent: false, toClear: true, toRemove: false};
     } else {
-      lapSelect = { lap_idx: row.lap_index, isCurrent: false, toClear: true};
+      lapSelect = { lap_idx: row.lap_index, isCurrent: false, toClear: true, toRemove: false};
     }
     this.lapSelected.emit(lapSelect);
   }
+
+  dropTable (event: CdkDragDrop<string[]>) {
+    console.log ('dropTable, event: ', event);
+    if (!event.isPointerOverContainer) {
+      console.log ('dropTable, row to remove');
+      let lapSelect: lapSelection;
+      lapSelect = { lap_idx: event.currentIndex, isCurrent: false, toClear: true, toRemove: true};
+      this.lapSelected.emit(lapSelect);
+    }
+}
 
   refresh () {
      // this.changeDetectorRefs.detectChanges();
@@ -257,12 +283,4 @@ export class lapDataSource extends DataSource<Lap> {
   disconnect() { }
 }
 
-export class infos {
-  total_dist: number;
-  total_time: string;
-  average_time: string;
-  average_speed: string;
-  average_HR: number;
-  nbValues: number;
-}
 
