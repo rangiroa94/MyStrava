@@ -67,6 +67,7 @@ export class Lap {
   lap_start: number;
   lap_end:number;
   lap_slope: number;
+  band: any;
 }
 
 export class infos {
@@ -91,6 +92,7 @@ export class Workout {
   splits: Split[];
   watchLaps: Lap[];
   splitLaps: Lap[];
+  customlaps: Lap[];
   gpsCoord: Gps[];
   heartrate: Heartrate[];
   constructor() {}

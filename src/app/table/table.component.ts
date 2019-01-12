@@ -125,80 +125,94 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
     console.log('toggleRow, row=',row.lap_index, 'selectTable=',this.srv.selectTable);
     this.preventSingleClick = false;
     const delay = 200;
-    let sign:number;
-    let lapSelect: lapSelection;
-    this.infosLap[this.currentTable].total_dist = 0;
-    this.infosLap[this.currentTable].nbValues = 0;
+    
     this.timer = setTimeout(() => {
         if (!this.preventSingleClick) {
-            this.selectedRows[this.srv.selectTable][row.lap_index-1] = !this.selectedRows[this.srv.selectTable][row.lap_index-1];
-            if (this.selectedRows[this.srv.selectTable][row.lap_index-1]) {
-              sign = 1;
-            } else {
-              sign = -1;
-            }
-            lapSelect = { lap_idx: row.lap_index*sign, isCurrent: false, toClear: false, toRemove: false};
-            this.lapSelected.emit(lapSelect);
-            let sumTime: number=0;
-            let averageTime: number=0;
-            let averageSpeed: number=0;
-            let averageDist: number=0;
-            let averageHR: number=0;
-            let slope: number=0;
-            let elevation: number=0;
-            for (let i:number=0;i<this.wkt.lap.length;i++) {
-              if (this.selectedRows[this.srv.selectTable][i]) {
-                this.infosLap[this.currentTable].nbValues++;
-                let t = new Date('1970-01-01T' + this.wkt.lap[i].lap_time + 'Z');
-                sumTime += t.getTime()/1000;
-                averageTime = sumTime/this.infosLap[this.currentTable].nbValues;
-                this.infosLap[this.currentTable].total_dist += this.wkt.lap[i].lap_distance;
-                averageDist = this.infosLap[this.currentTable].total_dist / this.infosLap[this.currentTable].nbValues;
-                averageSpeed = 1000*sumTime / this.infosLap[this.currentTable].total_dist;
-                averageHR += this.wkt.lap[i].lap_average_HR / this.wkt.lap.length;
-                slope += this.wkt.lap[i].lap_slope / this.wkt.lap.length;
-                elevation += this.wkt.lap[i].lap_total_elevation_gain;
-                //console.log('sumTime=',sumTime,'total_dist=',this.infosLap[this.currentTable].total_dist,
-                //  'averageSpeed=',averageSpeed);
-              }
-            }
-            averageSpeed = Math.trunc(averageSpeed*100)/100;
-            averageHR = Math.round(averageHR);
-            slope = Math.round(slope*10)/10;
-            elevation = Math.round(elevation);
-
-            this.infosLap[this.currentTable].total_dist = Math.round (this.infosLap[this.currentTable].total_dist) /1000;
-            console.log('toggleRow, row selected=',row.lap_index, 'sumTime=', sumTime);
-            let hh:number = Math.trunc(sumTime/3600);
-            let mm:number = Math.trunc(sumTime/60)-hh*60;
-            let ss:number = sumTime-hh*3600-mm*60;
-            let totaltime:string;
-            totaltime = String(hh).padStart(2, '0') + ':' +
-              String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
-            console.log('toggleRow, row selected=',row.lap_index, 'totaltime=', totaltime);
-
-            hh = Math.trunc(averageTime/3600);
-            mm = Math.trunc(averageTime/60)-hh*60;
-            ss = averageTime-hh*3600-mm*60;
-            ss = Math.round(ss*10)/10;
-            this.infosLap[this.currentTable].average_time = String(hh).padStart(2, '0') + ':' +
-              String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
-
-            hh = Math.trunc(averageSpeed/3600);
-            mm = Math.trunc(averageSpeed/60)-hh*60;
-            ss = averageSpeed-hh*3600-mm*60;
-            ss = Math.round(ss*10)/10;
-            this.infosLap[this.currentTable].average_speed = String(hh).padStart(2, '0') + ':' +
-              String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
-
-            this.infosLap[this.currentTable].total_time = totaltime;
-            this.infosLap[this.currentTable].average_HR = averageHR;
-            this.infosLap[this.currentTable].slope = slope;
-            this.infosLap[this.currentTable].elevation = elevation;
-            this.lapInfos.emit(this.infosLap[this.currentTable]);
-            // console.log('toggleRow, selectedRows=',this.selectedRows);
+            this.updateInfoLaps(row.lap_index, false);
         }
       }, delay);
+  }
+
+  updateInfoLaps (rowIdx: number, toRemove: boolean) {
+
+    let sign:number =1;
+    let lapSelect: lapSelection;
+    let toClear = false;
+    this.infosLap[this.currentTable].total_dist = 0;
+    this.infosLap[this.currentTable].nbValues = 0;
+    if (!toRemove) {
+      this.selectedRows[this.srv.selectTable][rowIdx-1] = !this.selectedRows[this.srv.selectTable][rowIdx-1];
+      if (this.selectedRows[this.srv.selectTable][rowIdx-1]) {
+        sign = 1;
+      } else {
+        sign = -1;
+      }
+    } else {
+      toClear = true;
+      rowIdx = rowIdx + 1;
+    }
+    
+    let sumTime: number=0;
+    let averageTime: number=0;
+    let averageSpeed: number=0;
+    let averageDist: number=0;
+    let averageHR: number=0;
+    let slope: number=0;
+    let elevation: number=0;
+    for (let i:number=0;i<this.wkt.lap.length;i++) {
+      if (this.selectedRows[this.srv.selectTable][i]) {
+        this.infosLap[this.currentTable].nbValues++;
+        let t = new Date('1970-01-01T' + this.wkt.lap[i].lap_time + 'Z');
+        sumTime += t.getTime()/1000;
+        averageTime = sumTime/this.infosLap[this.currentTable].nbValues;
+        this.infosLap[this.currentTable].total_dist += this.wkt.lap[i].lap_distance;
+        averageDist = this.infosLap[this.currentTable].total_dist / this.infosLap[this.currentTable].nbValues;
+        averageSpeed = 1000*sumTime / this.infosLap[this.currentTable].total_dist;
+        averageHR += this.wkt.lap[i].lap_average_HR / this.wkt.lap.length;
+        slope += this.wkt.lap[i].lap_slope / this.wkt.lap.length;
+        elevation += this.wkt.lap[i].lap_total_elevation_gain;
+        //console.log('sumTime=',sumTime,'total_dist=',this.infosLap[this.currentTable].total_dist,
+        //  'averageSpeed=',averageSpeed);
+      }
+    }
+    averageSpeed = Math.trunc(averageSpeed*100)/100;
+    averageHR = Math.round(averageHR);
+    slope = Math.round(slope*10)/10;
+    elevation = Math.round(elevation);
+
+    this.infosLap[this.currentTable].total_dist = Math.round (this.infosLap[this.currentTable].total_dist) /1000;
+    console.log('toggleRow, row selected=',rowIdx, 'sumTime=', sumTime);
+    let hh:number = Math.trunc(sumTime/3600);
+    let mm:number = Math.trunc(sumTime/60)-hh*60;
+    let ss:number = sumTime-hh*3600-mm*60;
+    let totaltime:string;
+    totaltime = String(hh).padStart(2, '0') + ':' +
+      String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+    console.log('toggleRow, row selected=',rowIdx, 'totaltime=', totaltime);
+
+    hh = Math.trunc(averageTime/3600);
+    mm = Math.trunc(averageTime/60)-hh*60;
+    ss = averageTime-hh*3600-mm*60;
+    ss = Math.round(ss*10)/10;
+    this.infosLap[this.currentTable].average_time = String(hh).padStart(2, '0') + ':' +
+      String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+
+    hh = Math.trunc(averageSpeed/3600);
+    mm = Math.trunc(averageSpeed/60)-hh*60;
+    ss = averageSpeed-hh*3600-mm*60;
+    ss = Math.round(ss*10)/10;
+    this.infosLap[this.currentTable].average_speed = String(hh).padStart(2, '0') + ':' +
+      String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+
+    this.infosLap[this.currentTable].total_time = totaltime;
+    this.infosLap[this.currentTable].average_HR = averageHR;
+    this.infosLap[this.currentTable].slope = slope;
+    this.infosLap[this.currentTable].elevation = elevation;
+    this.lapInfos.emit(this.infosLap[this.currentTable]);
+    console.log('updateInfoLaps, selectedRows=',this.selectedRows);
+    console.log('updateInfoLaps, wkt.lap=',this.wkt.lap);
+    lapSelect = { lap_idx: rowIdx*sign, isCurrent: false, toClear: toClear, toRemove: toRemove};
+    this.lapSelected.emit(lapSelect);
   }
 
   dbleClickRow (row: Lap) {
@@ -243,9 +257,11 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
     console.log ('dropTable, event: ', event);
     if (!event.isPointerOverContainer) {
       console.log ('dropTable, row to remove');
+      this.selectedRows[this.srv.selectTable].splice(event.currentIndex,1);
+      this.updateInfoLaps (event.currentIndex, true);
       let lapSelect: lapSelection;
-      lapSelect = { lap_idx: event.currentIndex, isCurrent: false, toClear: true, toRemove: true};
-      this.lapSelected.emit(lapSelect);
+      // lapSelect = { lap_idx: event.currentIndex+1, isCurrent: false, toClear: true, toRemove: true};
+      // this.lapSelected.emit(lapSelect);
     }
 }
 

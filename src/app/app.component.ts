@@ -261,7 +261,8 @@ export class AppComponent implements AfterViewInit {
           lap_total_elevation_gain: item.lap_total_elevation_gain,
           lap_start: 0,
           lap_end:0,
-          lap_slope: 0
+          lap_slope: 0,
+          band: {}
         };
         this.w1.lap.push(l1);
       });
@@ -370,7 +371,11 @@ export class AppComponent implements AfterViewInit {
   computeWatchLapIndex ( startIdx: number, correction: number ) {
     let j:number;
     let idx = startIdx;
-    let t: Date = new Date(this.w1.lap[0].lap_start_date);
+    let strdate: string;
+    // strdate = this.w1.lap[0].lap_start_date.replace("(-[0-9][0-9]) ([0-9][0-9]:)","\\1T\\2");
+    strdate = this.w1.lap[0].lap_start_date.replace("\+00:00",".000Z");
+   // console.log('strdate=', strdate);
+    let t: Date = new Date(strdate);
     let curTime:number=t.getTime()/1000;
     let splitTime=this.w1.gpsCoord[startIdx].gps_time;
     let computeLapTime=0;
@@ -380,10 +385,14 @@ export class AppComponent implements AfterViewInit {
       this.w1.lap[j].lap_start = idx;
       // let t: Date = new Date('1970-01-01T' + this.w1.lap[j].lap_time + 'Z');
       if (j<this.w1.lap.length-1) {
-          let t2: Date = new Date(this.w1.lap[j+1].lap_start_date);
+          // strdate = this.w1.lap[j+1].lap_start_date.replace("(-[0-9][0-9]) ([0-9][0-9]:)","\\1T\\2");
+          strdate = this.w1.lap[j+1].lap_start_date.replace("\+00:00",".000Z");
+          // console.log('strdate=',strdate);
+          let t2: Date = new Date(strdate);
           splitTime += t2.getTime()/1000 - curTime;
           computeLapTime = t2.getTime()/1000 - curTime;
           curTime = t2.getTime()/1000;
+          // console.log('t2=',t2,'splitTime=',splitTime,'curtime=',curTime);
           let hh:number = Math.trunc(computeLapTime/3600);
           let mm:number = Math.trunc(computeLapTime/60)-hh*60;
           let ss:number = computeLapTime-hh*3600-mm*60;
@@ -651,10 +660,9 @@ export class AppComponent implements AfterViewInit {
     if (this.splitBegin >= 0 ) {
       let split: any;
       split = { from: this.splitBegin, to: this.currentX, idx1: this.splitBeginIndex , idx2: index , rect: this.currentRect}
-      this.recessions[this.currentRecession] = split;
       this.setCurrentBand();
 
-      let lapData = this.getLapInfos(0);
+      let lapData = this.getLapInfos(this.splitBeginIndex,  index);
       averageBand = '<b>Split: ' + lapData['strTime'] + '<br />Distance: ' + lapData['dist'] +
       '<br />Elevation Gain: ' + lapData['elevationGain'] +'<br />Slope: ' + lapData['slope'] +' %<br /></b>';
     }
@@ -690,16 +698,16 @@ export class AppComponent implements AfterViewInit {
       }
     }
     if (!this.firstRefresh) {
-      for (let i = 0; i < this.recessions.length-1; i++) {
-          let band = this.renderer.rect(this.recessions[i].from, 
+      for (let i = 0; i < this.w1.lap.length; i++) {
+          // console.log ('redraw band: ', i);
+          let band = this.renderer.rect(this.w1.lap[i].band.from, 
             this.Ymin, 
-            (this.recessions[i].to-this.recessions[i].from), 
+            (this.w1.lap[i].band.to-this.w1.lap[i].band.from), 
             this.Ymax, 
             { fill: '#FFFF33',  opacity: 0.4});
           this.renderer.on(band, 'dblclick', () => { this.onDblClickBand(band) });
       }
     }
-    console.log('showBands recessions=',this.recessions);
   }
 
   showCurrentBand (x1: number, x2: number, visibility: boolean, color: string, lap: number) {
@@ -738,19 +746,18 @@ export class AppComponent implements AfterViewInit {
   }
 
   resizeBands( deltaX: number ) {
-    for (let i = 0; i < this.recessions.length-1; i++) {    
-      let ratio = ( this.xWidth + deltaX) / (this.xWidth);
-      console.log('ratio=',ratio);
-      let xx = (this.recessions[i].from-this.xMin)*ratio + this.xMin;
-      let hh = (this.recessions[i].to-this.xMin)*ratio + this.xMin;
-      console.log('xx=',xx);
+    if ( this.currentTable==1 ) {
+      for (let i = 0; i < this.w1.lap.length; i++) {    
+        let ratio = ( this.xWidth + deltaX) / (this.xWidth);
+        console.log('ratio=',ratio);
 
-      let idx1:number = this.recessions[i].idx1;
-      let idx2:number = this.recessions[i].idx2;
-      let t1 = this.w1.gpsCoord[idx1].gps_time*ratio;
-      let t2 = this.w1.gpsCoord[idx2].gps_time*ratio;
-      this.recessions[i].from =  this.myChart.getXAxisRect(0)['x']+this.convertIndexToAbs(idx1);
-      this.recessions[i].to =  this.myChart.getXAxisRect(0)['x']+this.convertIndexToAbs(idx2);
+        let idx1:number = this.w1.lap[i].band.idx1;
+        let idx2:number = this.w1.lap[i].band.idx2;
+        let t1 = this.w1.gpsCoord[idx1].gps_time*ratio;
+        let t2 = this.w1.gpsCoord[idx2].gps_time*ratio;
+        this.w1.lap[i].band.from =  this.myChart.getXAxisRect(0)['x']+this.convertIndexToAbs(idx1);
+        this.w1.lap[i].band.to =  this.myChart.getXAxisRect(0)['x']+this.convertIndexToAbs(idx2);
+      }
     }
   }
 
@@ -811,95 +818,102 @@ export class AppComponent implements AfterViewInit {
     this.selectedTable = 2;
     this.myChart.refresh();
     this.currentIcon = this.squarePin2;
-    this.w1.lap = [];
     this.lap_end_index = 0;
-    let k = 1;
-    let currentTime = 0;
-    let currentDate: Date;
 
-    currentDate = new Date(this.w1.dayTime);
-    currentTime = currentDate.getTime()/1000;
-    this.done = 0;
+    if ( typeof this.w1.splitLaps !== 'undefined') {
+      console.log ('copy split Laps');
+      this.w1.lap = Object.assign([], this.w1.splitLaps);
+    } else {
+      let k = 1;
+      let currentTime = 0;
+      let currentDate: Date;
+      this.w1.lap = [];
+      currentDate = new Date(this.w1.dayTime);
+      currentTime = currentDate.getTime()/1000;
+      this.done = 0;
 
-    for (let i =0; i< this.w1.splits.length; i++) {
-      let l1: Lap = new Lap();
+      for (let i =0; i< this.w1.splits.length; i++) {
+        let l1: Lap = new Lap();
 
-      let distance: number;
-      if (Math.round(this.w1.splits[i].split_distance/1000) <1) {  
-        distance = Math.round(this.w1.splits[i].split_distance/10)*10;
-      } else {
-        distance = Math.round(this.w1.splits[i].split_distance/1000)*1000;
+        let distance: number;
+
+        if (Math.trunc(this.w1.splits[i].split_distance/1000) <1) {  
+          console.log ('dist < 1');
+          distance = Math.round(this.w1.splits[i].split_distance/10)*10;
+        } else {
+          distance = Math.round(this.w1.splits[i].split_distance/1000)*1000;
+        }
+
+        l1 = {
+          lap_index: k++,
+          lap_start_index: 0,
+          lap_end_index: 0,
+          lap_distance: distance,
+          lap_time: this.w1.splits[i].split_time,
+          lap_start_date: currentDate.toString(),
+          lap_cumulatedTime: "",
+          lap_average_speed: 0,
+          lap_average_HR: 0,
+          lap_average_cadence: 0,
+          lap_pace_zone: 0,
+          lap_total_elevation_gain: 0,
+          lap_start: 0,
+          lap_end: 0,
+          lap_slope: 0,
+          band: {}
+        };
+        // console.log ('updateSplitLapTable, split_time=', this.w1.splits[i].split_time);
+        let t = new Date('1970-01-01T' + this.w1.splits[i].split_time + 'Z');
+        currentTime += t.getTime()/1000;
+        currentDate = new Date(currentTime*1000);
+
+        // console.log ('updateSplitLapTable, cumulatedTime=', cumulatedTime, currentDate.toString());
+        this.w1.lap.push(l1);
       }
 
-      l1 = {
-        lap_index: k++,
-        lap_start_index: 0,
-        lap_end_index: 0,
-        lap_distance: distance,
-        lap_time: this.w1.splits[i].split_time,
-        lap_start_date: currentDate.toString(),
-        lap_cumulatedTime: "",
-        lap_average_speed: 0,
-        lap_average_HR: 0,
-        lap_average_cadence: 0,
-        lap_pace_zone: 0,
-        lap_total_elevation_gain: 0,
-        lap_start: 0,
-        lap_end: 0,
-        lap_slope: 0
-      };
-      // console.log ('updateSplitLapTable, split_time=', this.w1.splits[i].split_time);
-      let t = new Date('1970-01-01T' + this.w1.splits[i].split_time + 'Z');
-      currentTime += t.getTime()/1000;
-      currentDate = new Date(currentTime*1000);
+      if ( this.w1.splits.length ) {
 
-      // console.log ('updateSplitLapTable, cumulatedTime=', cumulatedTime, currentDate.toString());
-      this.w1.lap.push(l1);
-    }
-
-    if ( this.w1.splits.length ) {
-
-      this.computeWatchLapIndex(0,1);
-      this.lapSize = this.w1.lap.length;
-      this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end;
-      this.w1.lap.sort(this.compare);
-      
-      console.log ('updateSplitLapTable, w1.lap=', this.w1.lap);
-
-      for (let i =0; i< this.w1.lap.length; i++) {
+        this.computeWatchLapIndex(0,1);
+        this.lapSize = this.w1.lap.length;
+        this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end;
+        // this.w1.lap.sort(this.compare);
         
-        let avgSpeed: number = 0;
-        let avgHR: number = 0;
-        let elevationGain: number = 0;
-        let deltaH: number = 0;
-        let deltaD: number = 0;
-        let slope : number = 0;
-        for (let j=this.w1.lap[i].lap_start; j<=this.w1.lap[i].lap_end;j++) {
-          avgSpeed+=this.speedData[j];
-          avgHR+=this.hrData[j];
-          if (j>this.w1.lap[i].lap_start) {
-            elevationGain += this.elevationData[j] - this.elevationData[j-1];
-            deltaH += this.elevationData[j] - this.elevationData[j-1];
-            deltaD += this.distanceData[j] - this.distanceData[j-1];
+        console.log ('updateSplitLapTable, w1.lap=', this.w1.lap);
+
+        for (let i =0; i< this.w1.lap.length; i++) {
+          
+          let avgSpeed: number = 0;
+          let avgHR: number = 0;
+          let elevationGain: number = 0;
+          let deltaH: number = 0;
+          let deltaD: number = 0;
+          let slope : number = 0;
+          for (let j=this.w1.lap[i].lap_start; j<=this.w1.lap[i].lap_end;j++) {
+            avgSpeed+=this.speedData[j];
+            avgHR+=this.hrData[j];
+            if (j>this.w1.lap[i].lap_start) {
+              elevationGain += this.elevationData[j] - this.elevationData[j-1];
+              deltaH += this.elevationData[j] - this.elevationData[j-1];
+              deltaD += this.distanceData[j] - this.distanceData[j-1];
+            }
           }
-        }
-        slope = (deltaH) / (Math.sqrt(Math.pow(deltaD,2)-Math.pow(deltaH,2))) *100;
+          slope = (deltaH) / (Math.sqrt(Math.pow(deltaD,2)-Math.pow(deltaH,2))) *100;
 
-        avgSpeed=avgSpeed/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
-        avgSpeed = Math.trunc(avgSpeed*100)/100;
-        avgHR=avgHR/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
-        avgHR = Math.trunc(avgHR); 
-        // console.log('avgSpeed1=',avgSpeed);
-        this.w1.lap[i].lap_average_speed = avgSpeed;
-        this.w1.lap[i].lap_average_HR = Math.round(avgHR);
-        this.w1.lap[i].lap_total_elevation_gain= Math.round(elevationGain);
-        this.w1.lap[i].lap_slope= Math.round(slope*10)/10;
-       }
-
+          avgSpeed=avgSpeed/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
+          avgSpeed = Math.trunc(avgSpeed*100)/100;
+          avgHR=avgHR/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
+          avgHR = Math.trunc(avgHR); 
+          // console.log('avgSpeed1=',avgSpeed);
+          this.w1.lap[i].lap_average_speed = avgSpeed;
+          this.w1.lap[i].lap_average_HR = Math.round(avgHR);
+          this.w1.lap[i].lap_total_elevation_gain= Math.round(elevationGain);
+          this.w1.lap[i].lap_slope= Math.round(slope*10)/10;
+         }
+         this.w1.splitLaps = Object.assign([], this.w1.lap);
+      }
     }
-
+    console.log ('split Laps built');
     this.done = 1;
-
     this.srv.pushWorkout(this.w1.lap,this.selectedTable);
   }
 
@@ -911,64 +925,93 @@ export class AppComponent implements AfterViewInit {
       this.w1.watchLaps = Object.assign([], this.w1.lap);
       console.log('copy watchLaps=',this.w1.watchLaps);
     }     
-    if ( (this.currentTable!=1) ) {
-      // this.myChart.refresh();
-      this.showBands();
-    }
+
+    this.w1.lap = [];
+    
+    if ( typeof this.w1.customlaps !== 'undefined') {
+      console.log ('copy custom Laps');
+      this.w1.lap = Object.assign([], this.w1.customlaps);
+      if ( (this.currentTable!=1) ) {
+        // this.myChart.refresh();
+        console.log ('Refresh bands');
+        this.showBands();
+      }
+      console.log ('updateCustomLapTable, w1.lap=', this.w1.lap);
+     } 
+     this.currentTable = 1;
+     this.selectedTable = 1;
+     this.firstRefresh = false;
+     this.currentIcon = this.squarePin;
+     this.lapSize = this.w1.lap.length;
+     this.lap_end_index = 0;
+     this.srv.pushWorkout(this.w1.lap,this.selectedTable);
+
+   }
+
+  addCustomLap (split: any) {
+
+    if ( (this.currentTable==0) ) {
+      this.w1.watchLaps = Object.assign([], this.w1.lap);
+      console.log('copy watchLaps=',this.w1.watchLaps);
+    }     
 
     this.currentTable = 1;
     this.selectedTable = 1;
     this.firstRefresh = false;
     this.currentIcon = this.squarePin;
-    this.w1.lap = [];
+    if ( typeof this.w1.customlaps === 'undefined' ) {
+      this.w1.lap = [];
+      this.w1.customlaps = [];
+    }
     this.lap_end_index = 0;
     let cumulatedTime: number = 0;
     let elevationGain: number = 0;
     let k = 1;
     let beginTime: number = this.startHour;
-    for (let i = this.recessions.length-1; i >0 ; i--) {
-      let lapData = this.getLapInfos (i);
-      let l1: Lap = new Lap();
-      let avgSpeed: number = 0;
-      let avgHR: number = 0;
-      for (let i=lapData['idx1']; i<=lapData['idx2'];i++) {
-        avgSpeed+=this.speedData[i];
-        avgHR+=this.hrData[i];
-      }
-      avgSpeed=avgSpeed/(lapData['idx2']-lapData['idx1']+1);
-      avgSpeed = Math.trunc(avgSpeed*100)/100;
-      avgHR=Math.round(avgHR/(lapData['idx2']-lapData['idx1']+1));
-      console.log('avgSpeed1=',avgSpeed);
-      
-      l1 = {
-        lap_index: k++,
-        lap_start_index: lapData['idx1'],
-        lap_end_index: 0,
-        lap_distance: lapData['dist'],
-        lap_time: lapData['strTime'],
-        lap_start_date: (beginTime+lapData['startTime']).toString(),
-        lap_cumulatedTime: "",
-        lap_average_speed: avgSpeed,
-        lap_average_HR: avgHR,
-        lap_average_cadence: 0,
-        lap_pace_zone: 0,
-        lap_total_elevation_gain: lapData['elevationGain'],
-        lap_start: lapData['idx1'],
-        lap_end:lapData['idx2'],
-        lap_slope: lapData['slope']
-      };
-      // console.log('splitLap=',l1, 'lap_start_date=',l1.lap_start_date,'cumulatedTime=',cumulatedTime);
 
-      this.w1.lap.push(l1);
-      this.lapSize = this.w1.lap.length;
-      this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end_index;
+    let lapData = this.getLapInfos (split.idx1, split.idx2);
+    let avgSpeed: number = 0;
+    let avgHR: number = 0;
+    for (let i=lapData['idx1']; i<=lapData['idx2'];i++) {
+      avgSpeed+=this.speedData[i];
+      avgHR+=this.hrData[i];
+    }
+    avgSpeed=avgSpeed/(lapData['idx2']-lapData['idx1']+1);
+    avgSpeed = Math.trunc(avgSpeed*100)/100;
+    avgHR=Math.round(avgHR/(lapData['idx2']-lapData['idx1']+1));
+    console.log('avgSpeed1=',avgSpeed);
+  
+    let l1: Lap = new Lap();
+    l1 = {
+      lap_index: k++,
+      lap_start_index: split.idx1,
+      lap_end_index: split.idx2,
+      lap_distance: lapData['dist'],
+      lap_time: lapData['strTime'],
+      lap_start_date: (beginTime+lapData['startTime']).toString(),
+      lap_cumulatedTime: "",
+      lap_average_speed: avgSpeed,
+      lap_average_HR: avgHR,
+      lap_average_cadence: 0,
+      lap_pace_zone: 0,
+      lap_total_elevation_gain: lapData['elevationGain'],
+      lap_start: split.idx1,
+      lap_end: split.idx2,
+      lap_slope: lapData['slope'],
+      band: split
+    };
+    // console.log('splitLap=',l1, 'lap_start_date=',l1.lap_start_date,'cumulatedTime=',cumulatedTime);
 
-     }
+    this.w1.lap.push(l1);
+    this.w1.customlaps.push(l1);
+    this.lapSize = this.w1.lap.length;
+    this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end_index;
 
      this.w1.lap.sort(this.compare);
+     this.w1.customlaps.sort(this.compare);
      k = 1;
      this.w1.lap.forEach(element => {
- 
+        console.log('After sort, element=', element);
         let t = new Date('1970-01-01T' + element['lap_time'] + 'Z');
         cumulatedTime += t.getTime()/1000;
         let hh:number = Math.trunc(cumulatedTime/3600);
@@ -976,13 +1019,13 @@ export class AppComponent implements AfterViewInit {
         let ss:number = cumulatedTime-hh*3600-mm*60;
         let totaltime = String(hh).padStart(2, '0') + ':' +
                 String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
+        this.w1.customlaps[k-1].lap_cumulatedTime = totaltime;
         element['lap_cumulatedTime']=totaltime;
-        element['lap_index']=k++;
+        this.w1.customlaps[k-1].lap_index = k;
+        element['lap_index'] = k++;
      });
 
-      
-     console.log ('updateCustomLapTable, w1.lap=', this.w1.lap);
-
+     console.log ('addCustomLap, w1.lap=', this.w1.lap);
      this.srv.pushWorkout(this.w1.lap,this.selectedTable);
   }
 
@@ -1011,9 +1054,8 @@ export class AppComponent implements AfterViewInit {
     this.rect = rect;
   };
 
-  getLapInfos (idx: number) {
-    let idx1:number = this.recessions[idx].idx1;
-    let idx2:number = this.recessions[idx].idx2;
+  getLapInfos (idx1: number, idx2:number) {
+
     console.log ('getLapInfos, idx1=', idx1, 'idx2=',idx2);
     let t = this.w1.gpsCoord[idx2].gps_time - this.w1.gpsCoord[idx1].gps_time;
     let hh:number = Math.trunc(t/3600);
@@ -1051,7 +1093,7 @@ export class AppComponent implements AfterViewInit {
     avgHR=avgHR/(idx2-idx1+1);
     avgHR = Math.trunc(avgHR);
     return {
-      idx1: idx1, idx2: idx2, dist: dist, strTime: averageTime, startTime: idx1 ,
+      idx1: idx1, idx2: idx2, dist: dist, strTime: averageTime, startTime: this.w1.gpsCoord[idx1].gps_time ,
       elevationGain: elevationGain, avgSpeed: avgSpeed, avgHR: avgHR, slope: slope};
   }
 
@@ -1125,7 +1167,7 @@ export class AppComponent implements AfterViewInit {
 
 
   onLapSelected (lap: lapSelection) {
-    console.log(">>>> onLapSelected, lap=", lap.lap_idx);
+    // console.log(">>>> onLapSelected, lap=", lap.lap_idx);
     let strokeWeight:number;
     let lineColor:string;
     let bandColor: string;
@@ -1190,15 +1232,17 @@ export class AppComponent implements AfterViewInit {
 
     if (lap.toRemove) {
       console.log("Lap toRemove: ", lap.lap_idx);
-      /*
-      this.w1.lap.splice(lap.lap_idx, 1);
-      this.recessions.splice(lap.lap_idx, 1);
+      this.w1.lap.splice(lap.lap_idx-1, 1);
+      this.w1.customlaps.splice(lap.lap_idx-1, 1);
       this.lapSize = this.w1.lap.length;
-      this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end_index;
+      this.lap_end_index = 0;
       console.log ('w1.lap=',this.w1.lap);
+      for (let i=0; i<this.lapSize;i++) {
+        this.w1.lap[i].lap_index = i+1;
+        this.w1.customlaps[i].lap_index = i+1;
+      }
       this.updateCustomLapTable (); 
       this.myChart.refresh();
-      */
     }
 
   }
@@ -1290,26 +1334,23 @@ export class AppComponent implements AfterViewInit {
                   this.saveCurrentX = -1;
                   this.onChartArea = false;
              } else if (event.type == 'mousedown') {
-                  if (this.splitBegin <0 ) {
+                  if (this.splitBegin <0 && this.currentTable==1) {
                     this.splitBegin = this.currentX;
                     this.splitBeginIndex = this.currentIndex;
-                    this.currentRecession = this.bands.length;
                     console.log ('splitBegin=',this.splitBegin);
                   } 
             } else if (event.type == 'mouseup') {
 
-                  if ( (this.splitBegin != this.currentX)  && (this.currentX - this.splitBegin)>0 )  {
+                  if ( (this.splitBegin != this.currentX)  && (this.currentX - this.splitBegin)>0 &&
+                        this.currentTable==1)  {
                     let split: any;
                     split = { from: this.splitBegin, to: this.currentX, idx1: this.splitBeginIndex, idx2: this.currentIndex, rect: this.currentRect }
-                    if( this.recessions.indexOf(split) === -1)  {
-                      console.log ('push split', split);
-                      this.recessions.push(split);
-                      this.renderer.on(this.currentRect, 'dblclick', () => { this.onDblClickBand(this.currentRect) });
-                      this.updateCustomLapTable();
-                    }
+                    console.log ('push split', split);
+                    this.renderer.on(this.currentRect, 'dblclick', () => { this.onDblClickBand(this.currentRect) });
+                    this.addCustomLap(split);
+                    this.updateCustomLapTable();
                     this.splitBegin = -1;
                     this.saveCurrentX = -1;
-                    console.log ('recessions=',this.recessions);
                   } else {
                     this.splitBegin = -1;
                     this.saveCurrentX = -1;
