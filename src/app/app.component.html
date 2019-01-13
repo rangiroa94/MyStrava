@@ -29,11 +29,11 @@
       {{w1.name}}: {{w1.act.time}}, {{w1.act.distance}} km        <br>
       {{w1.dayTime}}
     </div>
-    <!--
-    <svg class="iconActivity" style="border: 1;"> 
+
+    <svg width="50" height="50" class="iconActivity"> 
       <path [attr.d]="typeIcon[w1.act.type].path" [attr.fill]="typeIcon[w1.act.type].color" />
      </svg>
-    -->
+
   </div>
   <button class="header3" mat-icon-button (click)="onClickSettings()">
       <mat-icon aria-label="Settings">settings</mat-icon>
@@ -63,7 +63,7 @@
       vertical-align: top;
       display: inline-block;
       *display: inline;
-      zoom: 1
+      zoom: 1;
   }
 
   .header2 {
@@ -71,7 +71,6 @@
       display: inline-block;
       *display: inline;
       zoom: 1;
-      border: 1;
   }
 
   .headerIcon {
@@ -83,7 +82,8 @@
 
   .iconActivity {
       zoom: 1;
-      width : 150;
+      height: 35;
+      width: 25;
   }
 
   #HeadContainer {
