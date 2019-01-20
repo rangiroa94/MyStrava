@@ -22,6 +22,15 @@ export class WorkoutService {
     this.nbLaps = rows.length /2;
     this.lapsSource.next(rows);
   }
+
+  getStandardDate (date: string) {
+
+    let tmpTime = date.split(':');
+    let hh = tmpTime[0].padStart(2, '0')
+    let mm = tmpTime[1].padStart(2, '0')
+    let ss = tmpTime[2].padStart(2, '0')
+    return (hh+':'+mm+':'+ss);
+  }
   
 }
 

@@ -54,6 +54,7 @@ export class AppComponent implements AfterViewInit {
   lng: number = 2.473295;
   progressValue: number = 2;
   progressTimer: any;
+  startupLoadTime: number = 0;
 
   x: number;
   y: number;
@@ -189,6 +190,7 @@ export class AppComponent implements AfterViewInit {
   public showProgress() {
         this.progressTimer = setInterval(() => {
           console.log ('Check progress ...');
+          if ( this.startupLoadTime++ > 120) clearInterval(this.progressTimer);
           if (this.wid != "") {
             this.http.get(this.urlbase + this.urlprogress).subscribe((p: Progress) => {
               console.log ('Receive progress value=', p.value);
@@ -196,6 +198,7 @@ export class AppComponent implements AfterViewInit {
               }
             );
           }
+
       }, 1000);
   }
           
@@ -306,29 +309,31 @@ export class AppComponent implements AfterViewInit {
         this.distanceData.push(Math.round(item.distance_value*10)/10);
       });
 
-      this.computeWatchLapIndex(0, 1);
+      if (this.w1.gpsCoord.length>0) {
+        this.computeWatchLapIndex(0, 1);
 
-      for (let i =0; i< this.w1.lap.length; i++) {
-        let avgHR: number = 0;
-        let deltaH: number = 0;
-        let deltaD: number = 0;
-        let elevationGain: number = 0;
-        let slope: number = 0;
-        for (let j=this.w1.lap[i].lap_start; j<=this.w1.lap[i].lap_end;j++) {
-          avgHR+=this.hrData[j];
-          if (j>this.w1.lap[i].lap_start) {
-            deltaH += this.elevationData[j] - this.elevationData[j-1];
-            deltaD += this.distanceData[j] - this.distanceData[j-1];
-            elevationGain += this.elevationData[j] - this.elevationData[j-1];
+        for (let i =0; i< this.w1.lap.length; i++) {
+          let avgHR: number = 0;
+          let deltaH: number = 0;
+          let deltaD: number = 0;
+          let elevationGain: number = 0;
+          let slope: number = 0;
+          for (let j=this.w1.lap[i].lap_start; j<=this.w1.lap[i].lap_end;j++) {
+            avgHR+=this.hrData[j];
+            if (j>this.w1.lap[i].lap_start) {
+              deltaH += this.elevationData[j] - this.elevationData[j-1];
+              deltaD += this.distanceData[j] - this.distanceData[j-1];
+              elevationGain += this.elevationData[j] - this.elevationData[j-1];
+            }
           }
+          avgHR=avgHR/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
+          avgHR = Math.trunc(avgHR);
+          // console.log ('deltaH=',deltaH,'deltaD=',deltaD);
+          slope = (deltaH) / (Math.sqrt(Math.pow(deltaD,2)-Math.pow(deltaH,2))) *100;
+          this.w1.lap[i].lap_average_HR = Math.round(avgHR);
+          this.w1.lap[i].lap_total_elevation_gain = Math.round(elevationGain);
+          this.w1.lap[i].lap_slope = Math.round(slope*10)/10;
         }
-        avgHR=avgHR/(this.w1.lap[i].lap_end-this.w1.lap[i].lap_start+1);
-        avgHR = Math.trunc(avgHR);
-        // console.log ('deltaH=',deltaH,'deltaD=',deltaD);
-        slope = (deltaH) / (Math.sqrt(Math.pow(deltaD,2)-Math.pow(deltaH,2))) *100;
-        this.w1.lap[i].lap_average_HR = Math.round(avgHR);
-        this.w1.lap[i].lap_total_elevation_gain = Math.round(elevationGain);
-        this.w1.lap[i].lap_slope = Math.round(slope*10)/10;
       }
       console.log('w1=', this.w1);
       console.log('lapSize=', this.lapSize);
@@ -376,10 +381,11 @@ export class AppComponent implements AfterViewInit {
     let strdate: string;
     // strdate = this.w1.lap[0].lap_start_date.replace("(-[0-9][0-9]) ([0-9][0-9]:)","\\1T\\2");
     strdate = this.w1.lap[0].lap_start_date.replace("\+00:00",".000Z");
-   // console.log('strdate=', strdate);
+    console.log('strdate=', strdate);
     let t: Date = new Date(strdate);
     let curTime:number=t.getTime()/1000;
     let splitTime=this.w1.gpsCoord[startIdx].gps_time;
+    console.log('splitTime=', splitTime);
     let computeLapTime=0;
     for(j = 0;j<this.w1.lap.length;j++) {
       // this.w1.lap[j].lap_start = Math.round(this.w1.lap[j].lap_start_index*this.ratio);
@@ -414,7 +420,9 @@ export class AppComponent implements AfterViewInit {
       this.w1.lap[j].lap_cumulatedTime = String(hh).padStart(2, '0') + ':' +
         String(mm).padStart(2, '0') +':' + String(ss).padStart(2, '0');
       idx = this.binaryIndexOf(splitTime, correction);
+      console.log('idx dichotomie=', idx);
       this.w1.lap[j].lap_end = idx;
+      if (idx<0 && (j==this.w1.lap.length-1) ) {this.w1.lap[j].lap_end=this.resolution-1}
       // console.log('lap_end=', this.w1.lap[j].lap_end);
     }
   }
@@ -527,7 +535,8 @@ export class AppComponent implements AfterViewInit {
     this.padding = { left: 2, top: 2, right: 15, bottom: 5 };
     this.titlePadding = { left: 0, top: 0, right: 0, bottom: 10 };
     console.log ('w1.act.time=', this.w1.act.time);
-    let t = new Date('1970-01-01T' + this.w1.act.time + 'Z');
+    let tmpTime = this.srv.getStandardDate(this.w1.act.time);
+    let t = new Date('1970-01-01T' + tmpTime + 'Z');
     let workoutDuration = t.getTime()/1000;
     console.log ('workoutDuration=', t, workoutDuration);
     let step = workoutDuration / (this.resolution-1);
@@ -873,7 +882,7 @@ export class AppComponent implements AfterViewInit {
         this.w1.lap.push(l1);
       }
 
-      if ( this.w1.splits.length ) {
+      if ( this.w1.splits.length && (this.w1.gpsCoord.length>0)  ) {
 
         this.computeWatchLapIndex(0,1);
         this.lapSize = this.w1.lap.length;
@@ -1110,21 +1119,22 @@ export class AppComponent implements AfterViewInit {
     'use strict';
  
     var minIndex = 0;
-    var maxIndex = this.resolution - 1;
+    var maxIndex = this.w1.gpsCoord.length - 1;
     var accuracy;
     if (correction) {
-      accuracy = this.workoutSize/this.resolution;
+      accuracy = this.workoutSize/this.w1.gpsCoord.length;
     } else {
       accuracy = 1;
     }
-    // console.log('workoutSize=',this.workoutSize,'accuracy=',accuracy);
+    console.log('workoutSize=',this.workoutSize,'accuracy=',accuracy);
     var currentIndex;
     var currentElement;
-    // console.log ('binaryIndexOf, searchElement=', searchElement);
+    console.log ('binaryIndexOf, searchElement=', searchElement);
     while (minIndex <= maxIndex) {
         currentIndex = (minIndex + maxIndex) / 2 | 0;
-        // console.log ('binaryIndexOf, currentIndex=', currentIndex);
+        
         currentElement = this.w1.gpsCoord[currentIndex].gps_time;
+        console.log ('binaryIndexOf, currentIndex=', currentIndex, 'val=',currentElement);
  
         if ( (currentElement < searchElement) && 
              (Math.abs(currentElement-searchElement)>accuracy) ) {
@@ -1147,21 +1157,21 @@ export class AppComponent implements AfterViewInit {
               index = currentIndex+1;
             }
             // console.log('index=',index, 'res=', this.resolution);
-            if ( index > (this.resolution - 1) ) {
-              index = this.resolution - 1;
+            if ( index > (this.w1.gpsCoord.length - 1) ) {
+              index = this.w1.gpsCoord.length - 1;
             }
-            // console.log('return index=',index);
+            console.log('return index=',index);
             return index;
         }
     }
- 
-    return -1;
+
+    return currentIndex;
   }
 
   resetLapsColor () {
     console.log ('resetLapsColor, resolution=',this.resolution);
     this.bands = [];
-    for (let i=0;i<this.resolution;i++) {
+    for (let i=0;i<this.w1.gpsCoord.length;i++) {
       this.w1.gpsCoord[i].strokeWeight = 2;
       this.w1.gpsCoord[i].color = '#2196f3';
     }

@@ -1,3 +1,5 @@
+from __future__ import absolute_import, unicode_literals
+from django.db import models
 from django.db import models
 from django.utils import timezone
 from datetime import date
@@ -17,6 +19,18 @@ class Login(models.Model):
 
     def last_login(self):
         return self.dateLogin
+        
+class StravaUser(models.Model):
+    lastname = models.CharField(max_length=20,default='')
+    firstname = models.CharField(max_length=20,default='')
+    uid = models.IntegerField(default=0)
+    lastUpdate = models.DateTimeField(default=date(2000,1,1))
+    resolution = models.IntegerField(default=1000)
+    currentActIndex = models.IntegerField(default=0)
+    nbActToRetreive = models.IntegerField(default=0)
+    
+    def __str__(self):              # __unicode__ on Python 2
+        return str(self.firstname+'_'+self.lastname)
 
 class Workout(models.Model):
     name = models.CharField(max_length=20,default='')
@@ -29,6 +43,7 @@ class Activity(models.Model):
     label = models.CharField(max_length=200,default='')
     start_date = models.DateTimeField(default=timezone.now)
     wid = models.IntegerField(default=0,unique=True)
+    uid = models.IntegerField(default=0)
     stravaId = models.IntegerField(default=0)
     distance = models.IntegerField(default=0)
     time = models.CharField(max_length=20,default='')
@@ -39,7 +54,7 @@ class Activity(models.Model):
     resolution = models.IntegerField(default=1000)
     
     def __str__(self):              # __unicode__ on Python 2
-        return str(self.stravaId)
+        return str(str(self.uid)+' '+self.label+' '+self.strDist)
         
 class Lap(models.Model):
     lap_index = models.IntegerField(default=0)

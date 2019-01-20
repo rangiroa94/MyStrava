@@ -1,6 +1,9 @@
 from django.shortcuts import get_object_or_404, render, redirect
-from .models import Login, Activity, Workout, Lap, GpsCoord, HeartRate, Speed, Elevation, Distance, Split
+from strava2.models import Login, Activity, Workout, Lap, GpsCoord, HeartRate, \
+    Speed, Elevation, Distance, Split, StravaUser
+from strava2.tasks import get_activities
 from django.views import generic
+from django.http import JsonResponse
 from stravalib import Client
 from datetime import datetime, timedelta
 import re
@@ -10,8 +13,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from strava2.serializers import WorkoutSerializer, LapSerializer
 from strava2.stravaModel import gpsCoord
+import sys
+from celery.result import AsyncResult
 
 _loginId = 0
+_progress = {}
 
 class IndexView(generic.ListView):
     template_name = 'strava2/index.html'
@@ -20,6 +26,10 @@ class IndexView(generic.ListView):
     def get_queryset(self):
         return Login.objects.all()
 
+def directLogin(request):
+    print ('directLogin', request)
+    return redirect('/strava2/1')
+    
 def login(request,loginId):
     global _loginId
     login = get_object_or_404(Login, pk=loginId)
@@ -44,7 +54,19 @@ def auth(request):
                                                   code=code)
     print ("access_token=",access_token)
     request.session['access_token'] = access_token
+    #request.session['access_token'] = 'ff4f273a775a57ce1c7dcc837e18a059370d338c'
     return redirect('/strava2/activities')
+    
+def getProgress(request):
+    global _progress
+    if not request.session.get('access_token') in _progress:
+        data = {'value': 0}
+    else:
+        data = {'value': _progress[request.session.get('access_token')]}
+    #data = {'value': 70}
+    # print ('Receive getProgress request ...')
+    return JsonResponse(data)
+    
 
 class ActivitiesView(generic.ListView):
     global _loginId
@@ -54,57 +76,22 @@ class ActivitiesView(generic.ListView):
 
     def get_queryset(self):
         self.client = Client(self.request.session.get('access_token'))
-        login = get_object_or_404(Login, pk=_loginId)
-        #d = datetime(2018, 5, 5)
-        date_1_day_ago = login.lastUpdate - timedelta(days=1)
-        activities = self.client.get_activities(after=date_1_day_ago,limit=45)
-        #activities = self.client.get_activities(after=d,limit=15)
-        act = None
-        for activity in activities:
-            act = self.client.get_activity(activity.id)
-            strDate = act.start_date.strftime("%Y-%m-%d %H:%M:%S")
-            print ('start_date=',strDate)
-            print ('act.distance=',act.distance)
-            print ('act.type=',act.type)
-            dist = re.sub(' .*$','',str(act.distance))
-            print ('dist=',dist)
-            strDistance = format(float(dist)/1000,'.2f')
-            print ('distance=',strDistance)
-            print ('stravaId=',act.upload_id)
-            print ('name=',act.name)
-            print ('time=',act.elapsed_time)
-            print ('splits_metric=',act.splits_metric)
-            if not Activity.objects.filter(stravaId=activity.id).exists():
-                workout=Workout.objects.create(name=act.name)
-                print ('wid=',workout.id)
-                activity.wid=workout.id
-                stravaAct = Activity(strTime=strDate,strDist=strDistance,distance=act.distance,\
-                    time=act.elapsed_time,label=act.name,stravaId=activity.id,wid=workout.id,workout_id=workout.id)
-                stravaAct.save()
-                Workout.objects.filter(id=workout.id).update(actId=stravaAct.id)
-                split = Split.objects.filter(workout__id=workout.id)
-                print ('Split first element=',split.count())
-                if not split.count():
-                    objs = [
-                        Split(split_index=i,split_distance=split.distance,split_time=split.elapsed_time,workout=workout) for i, split in enumerate(act.splits_metric)
-                    ]
-                    split = Split.objects.bulk_create(objs)
-            else:
-                Activity.objects.filter(stravaId=activity.id).update(strTime=strDate,strDist=strDistance)
-                
-        if act is not None : 
-            login.lastUpdate = datetime.now()
-            login.save()
-        return Activity.objects.all().order_by('-strTime')
+        self.result = get_activities.delay (_loginId, self.request.session.get('access_token'))
+        print ('return do_work, tid=',self.result)
+        return Activity.objects.filter(uid=self.client.get_athlete().id).order_by('-strTime')
      
     def get_context_data(self, **kwargs):
         context = super(ActivitiesView, self).get_context_data(**kwargs)
         login = get_object_or_404(Login, pk=_loginId)
         user = self.client.get_athlete()
         print ("lastname=",user.lastname)
+        print ('firstname=',user.firstname)
         print ('mail=',user.email)
+        print ('id=',user.id)
         login.userName = user.lastname
+        login.firstName = user.firstname
         context['login'] = login
+        context['task_id'] = self.result.task_id
         return context
 
 class WorkoutView(generic.DetailView):
@@ -137,6 +124,8 @@ class WorkoutDetail(APIView):
             raise Http404
 
     def get(self, request, pk, format=None):
+        global _progress
+        _progress[self.request.session.get('access_token')] = 5
         workout = self.get_object(pk)
         self.client = Client(self.request.session.get('access_token'))
         print('WorkoutDetail, client=',self.client)
@@ -145,6 +134,7 @@ class WorkoutDetail(APIView):
         activity = get_object_or_404(Activity, id=workout.actId)
         print('WorkoutDetail, activity.stravaId=',activity.stravaId)
         streams = self.client.get_activity_streams(activity_id=activity.stravaId,resolution='medium',types=types)
+        _progress[self.request.session.get('access_token')] = 10
         print ('streams=',streams)
         #print('time seq size=',len(streams['time'].data))
         #print('dist seq',streams['distance'].data)
@@ -154,7 +144,7 @@ class WorkoutDetail(APIView):
         #print('gps seq',streams['latlng'].data)
         gps = GpsCoord.objects.filter(workout__id=workout.id)
         print ('gps first element=',gps.count())
-        if not gps.count():
+        if not gps.count() and 'latlng' in streams:
             print ('empty query, create SQL record')
             objs = [
                 GpsCoord(gps_index=i,gps_time=streams['time'].data[i],gps_lat=gps[0],gps_long=gps[1],workout=workout) for i, gps in enumerate(streams['latlng'].data)
@@ -163,35 +153,39 @@ class WorkoutDetail(APIView):
             #for i, gps in enumerate(streams['latlng'].data):
             #    print ('gps_index:',i,'gps_lat:',gps[0],'gps_long:',gps[1],'gps_time:',streams['time'].data[i])
             coord = GpsCoord.objects.bulk_create(objs)
-        
+
+        _progress[self.request.session.get('access_token')] = 20
         hr = HeartRate.objects.filter(workout__id=workout.id)
-        if not hr.count():
+        if not hr.count() and 'heartrate' in streams:
             objs = [
                 HeartRate(hr_index=i,hr_value=hr,workout=workout) for i, hr in enumerate(streams['heartrate'].data)
             ]
             coord = HeartRate.objects.bulk_create(objs)
-            
+        
+        _progress[self.request.session.get('access_token')] = 25
         distance = Distance.objects.filter(workout__id=workout.id)
-        if not distance.count():
+        if not distance.count() and 'distance' in streams:
             objs = [
                 Distance(distance_index=i,distance_value=dist,workout=workout) for i, dist in enumerate(streams['distance'].data)
             ]
             coord = Distance.objects.bulk_create(objs)
             
         speed = Speed.objects.filter(workout__id=workout.id)
-        if not speed.count():
+        if not speed.count() and 'velocity_smooth' in streams:
             objs = [
                 Speed(speed_index=i,speed_value=speed,workout=workout) for i, speed in enumerate(streams['velocity_smooth'].data)
             ]
             coord = Speed.objects.bulk_create(objs)
-            
+        
+        _progress[self.request.session.get('access_token')] = 30
         elevation = Elevation.objects.filter(workout__id=workout.id)
-        if not elevation.count():
+        if not elevation.count() and 'altitude' in streams:
             objs = [
                 Elevation(elevation_index=i,elevation_value=elevation,workout=workout) for i, elevation in enumerate(streams['altitude'].data)
             ]
             coord = Elevation.objects.bulk_create(objs)
-            
+        
+        _progress[self.request.session.get('access_token')] = 35
         laps = self.client.get_activity_laps(activity.stravaId)
         i=0
         for strLap in laps:
@@ -203,6 +197,9 @@ class WorkoutDetail(APIView):
             print ('start_date=',strLap.start_date)
             print ('lap_time=',strLap.elapsed_time)
             print ('lap_distance=',strLap.distance)
+            print ('lap_pace_zone=',strLap.pace_zone)
+            if strLap.pace_zone is None:
+                strLap.pace_zone = 0
             if strLap.average_cadence is None:
                 strLap.average_cadence=0;
             lap = Lap.objects.filter(workout__id=workout.id, lap_index=i)
@@ -211,8 +208,10 @@ class WorkoutDetail(APIView):
                 print ('total_elevation_gain=',strLap.total_elevation_gain)
                 print ('pace_zone=',strLap.pace_zone)
                 
+        _progress[self.request.session.get('access_token')] = 40      
         serializer = WorkoutSerializer(workout)
-        #print (serializer.data)
+        print ('serializer.data size=',sys.getsizeof(serializer.data))
+        _progress[self.request.session.get('access_token')] = 55
         return Response(serializer.data)
         
         
