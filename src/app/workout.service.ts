@@ -114,3 +114,15 @@ export interface lapSelection {
   toRemove: boolean;
 }
 
+export interface Login {
+  firstname: string;
+  lastname: string;
+}
+
+export class ActivityItem {
+  wid: number;
+  label: string;
+  distance: number;
+  type: string;
+  devMode: boolean;
+}
