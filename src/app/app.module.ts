@@ -15,6 +15,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { WorkoutComponent } from './workout/workout.component';
 import { TableComponent } from './table/table.component';
 import { ListComponent } from './listActivity/list.component';
+import { DummyComponent } from './dummy/dummy.component';
 
 import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
 import { jqxTooltipComponent } from "jqwidgets-scripts/jqwidgets-ts/angular_jqxtooltip";
@@ -28,6 +29,7 @@ import { WorkoutService } from './workout.service';
     TableComponent,
     WorkoutComponent,
     ListComponent,
+    DummyComponent,
     jqxChartComponent,
     jqxTooltipComponent
   ],
@@ -45,6 +47,10 @@ import { WorkoutService } from './workout.service';
         {
           path: "workout",
           component: WorkoutComponent
+        },
+        {
+          path: "strava2/activities",
+          component: DummyComponent
         }
       ],
     ),

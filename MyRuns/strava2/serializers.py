@@ -11,6 +11,11 @@ class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Activity
         fields = ('label', 'start_date', 'wid', 'stravaId', 'distance', 'time', 'type', 'strDist', 'strTime', 'resolution')
+        
+class ActivityItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Activity
+        fields = ('label', 'wid', 'strTime', 'distance', 'type')
 
 class LapSerializer(serializers.ModelSerializer):
     class Meta:

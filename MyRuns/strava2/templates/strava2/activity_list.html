@@ -1,37 +1,24 @@
-{% extends "base_generic.html" %}
-{% block title %}Activities for {{ login.firstName }} {{ login.userName }} 
-{% endblock %} 
-{% block content %}
-<div class='progress-wrapper'>
-  <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
-</div>
-<div id="progress-bar-message">Waiting for progress to start...</div>
-
-<h1>Activity List</h1>
-
-{% for activity in activities_list %}
-<h2>
-  <a href="{% url 'strava2:workout' activity.wid %}" >
-    {{ activity.strTime|lower }} : {{ activity.strDist }} km ( {{activity.type }})
-  </a>
-</h2>
-{% endfor %}
-
-{% load static from staticfiles %}
-{% block js %}
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>MyStrava</title>
+    <base href="/strava2/activities">
+    
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="icon" type="image/x-icon" href="favicon.ico"><link href="static/styles.897a650b2b87f13f6a5b.css" rel="stylesheet"/>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <app-root> Loading ...</app-root>
 <script>
-var progressUrl = "{% url 'strava2:celery_progress:task_status' task_id %}";
-document.addEventListener("DOMContentLoaded", function () {
-  CeleryProgressBar.initProgressBar(progressUrl,{onSuccess: onSuccess});
-});
+      localStorage.setItem('lastName', "{{login.userName}}");
+      localStorage.setItem('firstName', "{{login.firstName}}");
 </script>
-<script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-<script>
-function onSuccess() {
-  console.log('OK');
-}
-</script>
-{% endblock js %}
-
-{% endblock %}
+<script type="text/javascript" src="{% static 'runtime.ec2944dd8b20ec099bf3.js' %}"></script>
+<script type="text/javascript" src="{% static 'polyfills.980b87022e4bd8bcfaf6.js' %}"></script>
+<script type="text/javascript" src="{% static 'main.e2838c8d69df8704ce08.js' %}"></script>
+</body>
+</html>
 

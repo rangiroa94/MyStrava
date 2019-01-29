@@ -1,0 +1,41 @@
+{
+	"nbAct": 5, 
+	"currentAct": 0,
+	"activities" : [	
+		{
+		"wid": 151, 
+		"label": "Course à pied le soir",
+		"strTime": "01/01/2019",
+		"distance": 12500,
+		"type": "Run"
+		},
+		{
+		"wid": 152, 
+		"label": "Course à pied le matin",
+		"strTime": "03/01/2019",
+		"distance": 8600,
+		"type": "Run"
+		},
+		{
+		"wid": 153, 
+		"label": "Velo 15/09/2018",
+		"strTime": "04/01/2019",
+		"distance": 38600,
+		"type": "Ride"
+		},
+		{
+		"wid": 154, 
+		"label": "Natation 25/10/2018",
+		"strTime": "06/01/2019",
+		"distance": 1500,
+		"type": "Swimm"
+		},
+		{
+		"wid": 1555, 
+		"label": "Course à pied le matin",
+		"strTime": "20/01/2019",
+		"distance": 18600,
+		"type": "Run"
+		}
+	]
+}

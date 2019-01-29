@@ -1,0 +1,27 @@
+.list-container {
+ 
+}
+
+.list-act .mat-list-item {
+  height: 40px;
+  text-align: center; 
+  display: inline-block;
+}
+
+.progress {
+      display: flex;
+      justify-content: space-between;
+      zoom: 1
+  }
+
+.progressBar {
+  height: 30px;
+  width: 50%;
+  zoom: 1;
+ }
+
+ .iconActivity {
+      zoom: 1;
+      height: 30;
+      width: 25;
+  }

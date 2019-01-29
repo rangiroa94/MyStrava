@@ -7,11 +7,11 @@ from django.http import JsonResponse
 from stravalib import Client
 from datetime import datetime, timedelta
 import re
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from strava2.serializers import WorkoutSerializer, LapSerializer
+from strava2.serializers import WorkoutSerializer, LapSerializer, ActivityItemSerializer
 from strava2.stravaModel import gpsCoord
 import sys
 from celery.result import AsyncResult
@@ -67,6 +67,39 @@ def getProgress(request):
     # print ('Receive getProgress request ...')
     return JsonResponse(data)
     
+def refresh(request):
+    print ('refresh', request)
+    return redirect('/strava2/updateActivities')
+    
+    
+def getActivitiesView(request):
+    global _loginId
+
+    print (' >>>> getActivitiesView, get_queryset')
+    client = Client(request.session.get('access_token'))
+    print (' >>>> getActivitiesView, client=',client)
+    act = Activity.objects.filter(uid=client.get_athlete().id)
+    print (' >>>> getActivitiesView, acts=',act)
+    tid = request.session.get('task_id')
+    result = AsyncResult(tid)
+    print (' >>>> getActivitiesView, state=',result.state)
+    print (' >>>> getActivitiesView, meta_data=',result.info)
+
+    actList = []
+    for actItem in act:
+        #print (actItem)
+        serializer = ActivityItemSerializer(actItem)
+        #print ('serializer.data: ',serializer.data)
+        actList.append(serializer.data)
+        
+    data = {
+        'nbAct': result.info['total'],
+        'currentAct': result.info['current'],
+        'activities': actList
+        }
+        
+    print ('data=',data)
+    return JsonResponse(data)
 
 class ActivitiesView(generic.ListView):
     global _loginId
@@ -78,6 +111,7 @@ class ActivitiesView(generic.ListView):
         self.client = Client(self.request.session.get('access_token'))
         self.result = get_activities.delay (_loginId, self.request.session.get('access_token'))
         print ('return do_work, tid=',self.result)
+        self.request.session['task_id'] = self.result.task_id
         return Activity.objects.filter(uid=self.client.get_athlete().id).order_by('-strTime')
      
     def get_context_data(self, **kwargs):
@@ -92,6 +126,8 @@ class ActivitiesView(generic.ListView):
         login.firstName = user.firstname
         context['login'] = login
         context['task_id'] = self.result.task_id
+        print ('context=',context)
+        print ('Request=',self.request)
         return context
 
 class WorkoutView(generic.DetailView):

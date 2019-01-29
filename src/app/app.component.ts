@@ -73,18 +73,23 @@ export class AppComponent implements AfterViewInit {
         ;
 
     let lastname: string  ;
-    lastname = localStorage.getItem('lastname');
+    lastname = localStorage.getItem('lastName');
     if (lastname) {
-      localStorage.removeItem('username');
       this.username = lastname;
+      this.firstname = localStorage.getItem('firstName');
       this.devMode = false;
       console.log('username=', this.username);
+      localStorage.removeItem('lastName');
+      localStorage.removeItem('firstName');
+      this.login = { firstname: this.firstname, lastname: this.username};
+    } else {
+      this.login = { firstname: 'Francois', lastname: 'libespere'};
     }
 
-    this.initOK = true;
 
+    this.initOK = true;
     this.srv = wktService;
-    this.login = { firstname: 'Francois', lastname: 'libespere'};
+    
     // this.router.navigate (['/list',{ devmode: this.devMode, url: '/' }]);
 
   }

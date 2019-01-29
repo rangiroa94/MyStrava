@@ -1,0 +1,30 @@
+
+<div *ngIf="!initDone" class="progress">
+  
+  <div class="progressBar">
+  	<div >
+          {{currentAct}} / {{nbAct}}
+    </div>
+    <mat-progress-bar
+        [color]="'primary'"
+        [mode]="'determinate'"
+        [value]="progressValue"
+        [bufferValue]="'50'">
+    </mat-progress-bar>
+  </div>
+
+</div>
+<div class="list-container">
+
+    <mat-nav-list class="list-act">
+    <a mat-list-item *ngFor="let link of listActivities" (click)="onClickItem(link)"> 
+    	<div>
+	    	{{ link.strTime }}: {{ link.distance }} m 
+	    	<svg width="50" height="35" class="iconActivity"> 
+		      <path [attr.d]="srv.typeIcon[link.type].path" [attr.fill]="srv.typeIcon[link.type].color" />
+		    </svg>
+		</div>
+	</a>
+	</mat-nav-list>
+
+</div>
