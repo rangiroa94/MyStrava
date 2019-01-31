@@ -20,6 +20,10 @@
   zoom: 1;
  }
 
+ .progress .mat-progress-bar {
+  height: 20px;
+ }
+
  .iconActivity {
       zoom: 1;
       height: 30;

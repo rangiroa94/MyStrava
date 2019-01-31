@@ -89,9 +89,9 @@ export class ListComponent implements OnInit, OnChanges  {
       this.url = '/strava2/getActivities';
       this.listActMockup = [];
       this.listTmpAct = [];
-      this.listActivities =[];
       this.http.get(this.url).subscribe((act: any) => {
           console.log ('Receive activities =', act);
+          /*
           for (let i=0; i<act['activities'].length;i++) {
             let a = new ActivityItem();
             a.label = act['activities'][i].label;
@@ -101,6 +101,8 @@ export class ListComponent implements OnInit, OnChanges  {
             a.type = act['activities'][i].type;
             this.listActivities.push(a);
           }
+          */
+          this.listActivities = Object.assign([], act['activities']);
           this.progressValue = 100*(this.currentAct/this.nbAct);
           this.currentAct = act.currentAct;
           this.nbAct = act.nbAct;
