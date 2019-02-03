@@ -15,7 +15,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 class ActivityItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Activity
-        fields = ('label', 'wid', 'strTime', 'distance', 'type')
+        fields = ('label', 'wid', 'strTime', 'strDist', 'time' ,'type')
 
 class LapSerializer(serializers.ModelSerializer):
     class Meta:

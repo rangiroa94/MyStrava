@@ -26,17 +26,16 @@ export class ListComponent implements OnInit, OnChanges  {
 
   @Input() mode: boolean;
   @Input() phase: number;
+  @Input() listActivities: Array<ActivityItem>;
   @Output() initPhase: EventEmitter<number>  = new EventEmitter<number>();
+  @Output() activities: EventEmitter<any>  = new EventEmitter<any>();
 
   devMode : boolean;
   srv: WorkoutService;
   url: string;
   urlList: string;
-  listActivities: Array<ActivityItem> = new Array<ActivityItem>();  
-  listActMockup: Array<ActivityItem> = new Array<ActivityItem>(); 
-  listTmpAct: any = {
-    activities: []
-  };
+  isMobile: boolean;
+
   username: string = "YYYYY";
   firstname: string = "XXXXX";
   progressTimer: any;
@@ -54,6 +53,10 @@ export class ListComponent implements OnInit, OnChanges  {
 
     this.srv = wktService;
     this.router = router;
+    this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (this.isMobile) {
+      console.log('Mobile detected !!');
+    }
 
   }
 
@@ -67,12 +70,13 @@ export class ListComponent implements OnInit, OnChanges  {
 
     console.log ('mode=',this.mode);
     console.log ('phase=',this.phase);
+    console.log ('ngOnInit, listAct=',this.listActivities);
     this.getdata();
 
     console.log ('this.urlList=',this.urlList);
     this.progressTimer = setInterval(() => {
         this.getdata();
-    }, 1000);
+    }, 2000);
  
 
   }
@@ -87,21 +91,8 @@ export class ListComponent implements OnInit, OnChanges  {
             
     if (!this.mode) {
       this.url = '/strava2/getActivities';
-      this.listActMockup = [];
-      this.listTmpAct = [];
       this.http.get(this.url).subscribe((act: any) => {
           console.log ('Receive activities =', act);
-          /*
-          for (let i=0; i<act['activities'].length;i++) {
-            let a = new ActivityItem();
-            a.label = act['activities'][i].label;
-            a.strTime = act['activities'][i].strTime;
-            a.wid = act['activities'][i].wid;
-            a.distance = act['activities'][i].distance;
-            a.type = act['activities'][i].type;
-            this.listActivities.push(a);
-          }
-          */
           this.listActivities = Object.assign([], act['activities']);
           this.progressValue = 100*(this.currentAct/this.nbAct);
           this.currentAct = act.currentAct;
@@ -117,9 +108,8 @@ export class ListComponent implements OnInit, OnChanges  {
         this.url = 'assets/listAct.json';
         this.http.get(this.url).subscribe((act: any) => {
           console.log ('Receive activities =', act);
-          this.listActMockup = [];
-          this.listTmpAct = [];
           this.listActivities =[];
+          this.isMobile = act.isMobile;
           this.nbAct = act.nbAct;
           console.log ('nbAct =', this.nbAct);
           if (this.phase == 0) {
@@ -129,7 +119,8 @@ export class ListComponent implements OnInit, OnChanges  {
                 a.label = act['activities'][i].label;
                 a.strTime = act['activities'][i].strTime;
                 a.wid = act['activities'][i].wid;
-                a.distance = act['activities'][i].distance;
+                a.strDist = act['activities'][i].strDist;
+                a.time = act['activities'][i].time;
                 a.type = act['activities'][i].type;
                 this.listActivities.push(a);
                 this.progressValue = 100*(this.currentAct/this.nbAct);
@@ -143,7 +134,8 @@ export class ListComponent implements OnInit, OnChanges  {
                   label: item.label,
                   strTime: item.strTime,
                   wid: item.wid,
-                  distance: item.distance,
+                  strDist: item.strDist,
+                  time: item.time,
                   type: item.type
                 };
                 this.listActivities.push(a);
@@ -157,24 +149,18 @@ export class ListComponent implements OnInit, OnChanges  {
             this.initDone = true;
           }
         });
-        
-        // console.log('listTmpAct=',this.listTmpAct);
-
+              
     }
-
-    // console.log ('>>> this.listTmpAct= ', this.listTmpAct);
-    // console.log ('>>> this.listTmpAct length=', this.listTmpAct['activities'].length);
-
-    if (typeof this.listTmpAct['activities'] !== "undefined") {
-      console.log ('this.listTmpAct is defined, lg = ',this.listTmpAct['activities'].length);
-      
-    }
+    this.activities.emit (this.listActivities);
   }
 
   onClickItem(item: ActivityItem) {
     console.log('item selected=',item);
     item.devMode = this.mode;
-    this.router.navigate (['/workout',{ id: item.wid, devMode: this.mode }]);
+    if (this.initDone) {
+      this.router.navigate (['/workout',{ id: item.wid, devMode: this.mode, isMobile: this.isMobile }]);
+    }
+    
   }
  
 

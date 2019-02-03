@@ -55,6 +55,16 @@ agm-map {
   height: 300px;
 }
 
+mat-form-field.mat-form-field {
+}
+
+.mat-select {
+  width: 70%;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .mat-table {
   overflow: auto;
   min-width: auto;

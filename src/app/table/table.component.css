@@ -11,15 +11,24 @@
   width: calc(100%+20px);
 }
 
+#head {
+
+}
+
 .mat-tab-group {
     position: absolute;
     width:90%; 
     height:80%;
 }
 
+.mat-header-cell {
+  align-items: stretch;
+}
+
 .mat-header-row {
     width: 100%;
-    height: 0px;
+    min-height: 100%;
+    align-items: stretch;
 }
 
 .mat-column-lap_index {

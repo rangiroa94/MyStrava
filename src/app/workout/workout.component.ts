@@ -56,6 +56,7 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
   progressTimer: any;
   startupLoadTime: number = 0;
   devMode: boolean = false;
+  isMobile: boolean;
 
   x: number;
   y: number;
@@ -168,13 +169,6 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
     this.lapInfos.show = false;
     this.showSettings = false;
 
-    this.updateView();
-      
-    this.selectedWindow = this.winLap;
-
-    console.log('innerWidth=', window.innerWidth);
-    this.done = 0;
-
   }
 
   ngOnInit() {
@@ -182,9 +176,24 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
         console.log ('Workout ngOnInit params=',params);
         this.wid =Number(params.get('id'));
         this.devMode = (params.get('devMode')=='true');
-        this.showProgress();
-        this.getWorkout(this.wid, this.devMode);
+        if (this.devMode) {
+          this.isMobile = (params.get('isMobile')=='true');
+        } else {
+          this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        }
     });
+    if (this.isMobile) {
+      console.log('Mobile detected !!');
+      this.showLaps = false;
+    }
+    this.showProgress();
+    this.getWorkout(this.wid, this.devMode);
+    this.updateView();
+      
+    this.selectedWindow = this.winLap;
+
+    console.log('innerWidth=', window.innerWidth);
+    this.done = 0;
   }
 
 
@@ -274,6 +283,7 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
       this.lapSize = this.w1.lap.length;
       this.lap_end_index = this.w1.lap[this.lapSize-1].lap_end_index;
       this.workoutSize = this.w1.lap[this.w1.lap.length-1].lap_end_index;
+      if (this.workoutSize<this.resolution) this.resolution = this.workoutSize;
       this.ratio = this.resolution / this.workoutSize;
 
       console.log('ratio=', this.ratio);
@@ -348,7 +358,7 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
       this.w1.loaded = true;
       clearInterval(this.progressTimer);
 
-      this.displayTrends();
+      if (this.w1.gpsCoord.length>0) this.displayTrends();
 
     });
 
@@ -407,22 +417,39 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
   }
 
   updateView () {
-    this.winLap.x = 50;
-    this.winLap.y = 130;
+
+    if (this.isMobile) {
+      this.winLap.x = 0;
+      this.winLap.y = window.innerHeight - 0.4 * window.innerHeight ;
+      this.winLap.width = window.innerWidth;
+      this.winLap.height = 0.4 * window.innerHeight;
+    } else {
+      this.winLap.x = 50;
+      this.winLap.y = 130;
+      this.winLap.width = 310;
+      this.winLap.height = 500;
+    }
     this.winLap.px = 0;
     this.winLap.py = 0;
-    this.winLap.width = 310;
-    this.winLap.height = 500;
     this.winLap.draggingCorner = false;
     this.winLap.draggingWindow = false;
     this.winTrends.minArea = 20000
 
-    this.winTrends.x = window.innerWidth - 0.75 * window.innerWidth - 10;
-    this.winTrends.y = window.innerHeight - 0.2 * window.innerHeight - 10;
+    if (this.isMobile) {
+      this.winTrends.x = 0;
+      this.winTrends.y = window.innerHeight - 0.4 * window.innerHeight ;
+      this.winTrends.width = window.innerWidth;
+      this.winTrends.height = 0.4 * window.innerHeight;
+    } else {
+      this.winTrends.x = window.innerWidth - 0.75 * window.innerWidth - 10;
+      this.winTrends.y = window.innerHeight - 0.2 * window.innerHeight - 10;
+      this.winTrends.width = 0.70 * window.innerWidth;
+      this.winTrends.height = 0.2 * window.innerHeight;
+    }
+    
     this.winTrends.px = 0;
     this.winTrends.py = 0;
-    this.winTrends.width = 0.70 * window.innerWidth;
-    this.winTrends.height = 0.2 * window.innerHeight;
+    
     this.winTrends.draggingCorner = false;
     this.winTrends.draggingWindow = false;
     this.winTrends.minArea = 20000;
@@ -456,10 +483,16 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
       bounds.extend(new google.maps.LatLng(mm.gps_lat, mm.gps_long));
     }
     console.log('bounds=', bounds);
-    /* event.setZoom(event.zoom - 2); */
+    if (this.isMobile) {
+      event.setZoom(event.zoom+1); 
+    }
     event.fitBounds(bounds);
     console.log('this.lng=', this.lng);
-    event.panBy(-(this.winLap.width/2), this.winTrends.height / 1.6)
+    if (this.isMobile) {
+      event.panBy(0, this.winTrends.height / 1.6)
+    } else {
+      event.panBy(-(this.winLap.width/2), this.winTrends.height / 1.6)
+    }
     console.log('zoom=', event.zoom);
 
     this.squarePin = {
@@ -564,9 +597,9 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
              },
             valueAxis:
             {
-                title: { text: 'Speed<br>' },
+                title: (this.isMobile) ? {text: ''} : {text: 'Speed<br>'},
                 flip: false,
-                labels: { horizontalAlignment: 'right' },
+                labels: { visible: !this.isMobile , horizontalAlignment: 'right'},
                 bands: [],
             },
             series:
@@ -592,9 +625,9 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
             },
             valueAxis:
             {
-                title: { text: 'HeartRate<br>' },
+                title: (this.isMobile) ? {text: ''} : {text: 'HeartRate<br>'},
                 flip: false,
-                labels: { horizontalAlignment: 'right' },
+                labels: { visible: !this.isMobile , horizontalAlignment: 'right'},
                 bands: [],
             },
             series:
@@ -622,10 +655,10 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
             },
             valueAxis:
             {
-                title: { text: 'Altitude<br>' },
+                title: (this.isMobile) ? {text: ''} : {text: 'Altitude<br>'},
                 flip: false,
                 position: 'right',
-                labels: { horizontalAlignment: 'right' },
+                labels: { visible: !this.isMobile , horizontalAlignment: 'right'},
                 bands: [],
             },
             series:
@@ -794,7 +827,7 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
     }
     this.currentIcon = "";
     this.srv.pushWorkout(this.w1.lap, this.selectedTable);
-    this.myChart.refresh();
+    if (this.showTrends) {this.myChart.refresh();}
   }
 
   updateSplitLapTable() {
@@ -806,7 +839,7 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
     }
     this.currentTable = 2;
     this.selectedTable = 2;
-    this.myChart.refresh();
+    if (this.showTrends) {this.myChart.refresh();}
     this.currentIcon = this.squarePin2;
     this.lap_end_index = 0;
 
@@ -1215,25 +1248,27 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
       // console.log(">>>> onLapSelected, i=",i,"speed=",this.w1.gpsCoord[i].speed);
     }
 
-    let x1 = this.convertIndexToAbs(start_idx);
-    let x2 = this.convertIndexToAbs(end_idx);
+    if (this.showTrends) {
+      let x1 = this.convertIndexToAbs(start_idx);
+      let x2 = this.convertIndexToAbs(end_idx);
 
-    if (lap.isCurrent || lap.lap_idx< 0 || lap.toClear) this.showCurrentBand (x1, x2, visibility, bandColor, numLap);
-    if (!lap.isCurrent && lap.lap_idx > 0) this.bands[numLap] = this.currentRect;
+      if (lap.isCurrent || lap.lap_idx< 0 || lap.toClear) this.showCurrentBand (x1, x2, visibility, bandColor, numLap);
+      if (!lap.isCurrent && lap.lap_idx > 0) this.bands[numLap] = this.currentRect;
 
-    if (lap.toRemove) {
-      console.log("Lap toRemove: ", lap.lap_idx);
-      this.w1.lap.splice(lap.lap_idx-1, 1);
-      this.w1.customlaps.splice(lap.lap_idx-1, 1);
-      this.lapSize = this.w1.lap.length;
-      this.lap_end_index = 0;
-      console.log ('w1.lap=',this.w1.lap);
-      for (let i=0; i<this.lapSize;i++) {
-        this.w1.lap[i].lap_index = i+1;
-        this.w1.customlaps[i].lap_index = i+1;
+      if (lap.toRemove) {
+        console.log("Lap toRemove: ", lap.lap_idx);
+        this.w1.lap.splice(lap.lap_idx-1, 1);
+        this.w1.customlaps.splice(lap.lap_idx-1, 1);
+        this.lapSize = this.w1.lap.length;
+        this.lap_end_index = 0;
+        console.log ('w1.lap=',this.w1.lap);
+        for (let i=0; i<this.lapSize;i++) {
+          this.w1.lap[i].lap_index = i+1;
+          this.w1.customlaps[i].lap_index = i+1;
+        }
+        this.updateCustomLapTable (); 
+        this.myChart.refresh();
       }
-      this.updateCustomLapTable (); 
-      this.myChart.refresh();
     }
 
   }
@@ -1296,7 +1331,13 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
 
   onClickSettings () {
     console.log('clicked Settings button');
-    this.showSettings = !this.showSettings;
+    if (this.isMobile) {
+      this.showLaps = !this.showLaps;
+      this.showTrends = !this.showTrends;
+    } else {
+      this.showSettings = !this.showSettings;
+    }
+    
   }
 
   onDblClickBand (band : any) {

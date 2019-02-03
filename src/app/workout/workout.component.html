@@ -12,7 +12,7 @@
         [mode]="'determinate'"
         [value]="progressValue"
         [bufferValue]="'50'">
-    </mat-progress-bar>
+      </mat-progress-bar>
       <div style="position:relative; top: -60px; left: 30px;">
           {{progressValue}}
       </div>
@@ -118,7 +118,13 @@
   #tableSelect  {
     text-align: center;
     left: 50%;
+    height: 48px;
     margin-left: -100px;
+    /*
+    border-style: solid;
+    border-width: 1px;
+    border-color: black;
+    */
   }
 
   #projected-content-wrapper {
@@ -169,7 +175,9 @@
   #win-top-right-resize { top: 0px; right: 0px; }
   #win-bottom-left-resize { bottom: 0px; left: 0px; }
   #win-bottom-right-resize { bottom: 0px; right: 0px; }
-  #win-header {top: 0px; left: 0px;width: 100%; height: 10px; cursor: move;}
+
+  .win-header {top: 0px; left: 0px;width: 100%; height: 10px; cursor: move;}
+  .win-header-mobile {top: 0px; left: 0px;width: 100%; height: 0px; cursor: move;}
 
   ::ng-deep .mat-checkbox .mat-checkbox-frame {
     border-color: violet;
@@ -204,7 +212,7 @@
 <div id="wrapper" fxLayout="column">
    <div *ngIf="done" id="google_map" fxFlex="1 1 100%" #google_map>
     <agm-map #AgmMap [style.height.px]="google_map.offsetHeight" [latitude]="lat" [longitude]="lng" (mapReady)="fitToScreen($event)">
-      <ng-container *ngIf="done">
+      <ng-container *ngIf="done && w1.gpsCoord.length>0">
            <agm-polyline *ngFor="let point of w1.gpsCoord;let i = index;"  [strokeColor]="point.color" [strokeWeight]="point.strokeWeight">
               <agm-polyline-point [latitude]="point.gps_lat" [longitude]="point.gps_long">
               </agm-polyline-point>
@@ -264,16 +272,15 @@
         <div (mousedown)='winLap.onCornerClick($event, winLap.topRightResize)' id='win-top-right-resize' class='win-corner-resize-topRight'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomLeftResize)' id='win-bottom-left-resize' class='win-corner-resize-bottomLeft'></div>    
         <div (mousedown)='winLap.onCornerClick($event, winLap.bottomRightResize)' id='win-bottom-right-resize' class='win-corner-resize-bottomRight'></div> 
-        <div id="win-header"></div>
- 
-            <mat-form-field id='tableSelect'>
-              <mat-select placeholder="" [(ngModel)]="selectedTable"
-              (selectionChange)="onTableSelect($event.value)">
-                <mat-option *ngFor="let table of tables" [value]="table.value">
-                  {{table.viewValue}}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+        <div [ngClass]="{'win-header':!isMobile,'win-header-mobile':isMobile}"></div>
+          <mat-form-field id="tableSelect">
+            <mat-select placeholder="" [(ngModel)]="selectedTable"
+            (selectionChange)="onTableSelect($event.value)">
+              <mat-option *ngFor="let table of tables" [value]="table.value">
+                {{table.viewValue}}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
             <app-table id="lapTable" *ngIf="w1" [wkt]="w1" 
                   (lapSelected)="onLapSelected($event)"
                   (lapInfos)="onLapInfos($event)"

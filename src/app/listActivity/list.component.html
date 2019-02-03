@@ -1,30 +1,36 @@
 
-<div *ngIf="!initDone" class="progress">
-  
-  <div class="progressBar">
-  	<div >
-          {{currentAct}} / {{nbAct}}
-    </div>
-    <mat-progress-bar
-        [color]="'primary'"
-        [mode]="'determinate'"
-        [value]="progressValue"
-        [bufferValue]="'50'">
-    </mat-progress-bar>
+<div *ngIf="!initDone && nbAct>0" class="progress">
+  <div>
+        {{currentAct}} / {{nbAct}}
   </div>
-
+  <div style="width: 10px;"> </div>
+  <div class="progressBar">
+	    <mat-progress-bar
+	        [color]="'primary'"
+	        [mode]="'determinate'"
+	        [value]="progressValue"
+	        [bufferValue]="'50'">
+	    </mat-progress-bar>
+  </div>
 </div>
-<div class="list-container">
 
-    <mat-nav-list class="list-act">
-    <a mat-list-item *ngFor="let link of listActivities" (click)="onClickItem(link)"> 
-    	<div>
-	    	{{ link.strTime }}: {{ link.distance }} m 
+
+
+<mat-nav-list class="list-act" [ngClass]="{
+    'list-act':!isMobile,
+    'list-act-mobile':isMobile
+  }">
+<a mat-list-item id="my-list" *ngFor="let link of listActivities" (click)="onClickItem(link)"> 
+	<div class="line">
+    	<div class="begin">
+	    	<b>{{ link.strTime }}</b>: {{ link.label}}  ({{ link.strDist }} km / {{link.time}})
+	    </div>
+	    <div class="end">
 	    	<svg width="50" height="35" class="iconActivity"> 
 		      <path [attr.d]="srv.typeIcon[link.type].path" [attr.fill]="srv.typeIcon[link.type].color" />
 		    </svg>
 		</div>
-	</a>
-	</mat-nav-list>
+	</div>
+</a>
+</mat-nav-list>
 
-</div>

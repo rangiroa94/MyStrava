@@ -78,7 +78,7 @@ def getActivitiesView(request):
     print (' >>>> getActivitiesView, get_queryset')
     client = Client(request.session.get('access_token'))
     print (' >>>> getActivitiesView, client=',client)
-    act = Activity.objects.filter(uid=client.get_athlete().id)
+    act = Activity.objects.filter(uid=client.get_athlete().id).order_by('-strTime')
     print (' >>>> getActivitiesView, acts=',act)
     tid = request.session.get('task_id')
     result = AsyncResult(tid)

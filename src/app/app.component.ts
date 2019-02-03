@@ -28,6 +28,7 @@ export class AppComponent implements AfterViewInit {
   username: string = "YYYYY";
   firstname: string = "XXXXX";
   login: Login;
+  listAct: Array<ActivityItem> = new Array<ActivityItem>();  
 
   urlbase: string = '/strava2/';
   urlworkout: string = 'workoutDetail/';
@@ -101,6 +102,11 @@ export class AppComponent implements AfterViewInit {
   onInitPhase (phase: number) {
     console.log ('>>>>>> AppComponent, receive phase=', phase);
     this.phase = phase;
+  }
+
+  onActivities (listAct: any) {
+    console.log ('>>>>>> AppComponent, onActivities=', listAct);
+    this.listAct = Object.assign([], listAct);
   }
 
 }
