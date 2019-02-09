@@ -43,11 +43,13 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   sumDist: number=0;
   infosLap: infos[] = new Array<infos>();
   srv: WorkoutService;
+  isMobile: boolean;
 
   constructor( private changeDetectorRefs: ChangeDetectorRef, 
                 private wktService: WorkoutService ) { 
     console.log('TableComponent');
     this.srv = wktService;
+    this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   }
 
   ngOnInit() {
@@ -263,7 +265,7 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
       // lapSelect = { lap_idx: event.currentIndex+1, isCurrent: false, toClear: true, toRemove: true};
       // this.lapSelected.emit(lapSelect);
     }
-}
+  }
 
   refresh () {
      // this.changeDetectorRefs.detectChanges();

@@ -1,5 +1,5 @@
 <div class="table-container">
-   <mat-table #table  [dataSource]="dataSource" cdkDropList [cdkDropListData]="dataSource"
+   <mat-table #table [dataSource]="dataSource" [ngStyle]="{}" cdkDropList [cdkDropListData]="dataSource"
  (cdkDropListDropped)="dropTable($event)">
 
 		<ng-container id="head" matColumnDef="lap_index">

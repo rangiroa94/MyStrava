@@ -101,7 +101,9 @@ export class ListComponent implements OnInit, OnChanges  {
           if (this.currentAct >= this.nbAct) {
             clearInterval(this.progressTimer);
             this.initDone = true;
-        }
+          }
+          console.log ('>>> this.activities.emit');
+          this.activities.emit (this.listActivities);
       });
     } else {
 
@@ -148,10 +150,12 @@ export class ListComponent implements OnInit, OnChanges  {
             clearInterval(this.progressTimer);
             this.initDone = true;
           }
+          console.log ('>>> this.activities.emit');
+          this.activities.emit (this.listActivities);
         });
               
     }
-    this.activities.emit (this.listActivities);
+
   }
 
   onClickItem(item: ActivityItem) {
