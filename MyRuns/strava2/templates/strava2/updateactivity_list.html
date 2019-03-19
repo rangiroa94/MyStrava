@@ -1,0 +1,16 @@
+{% extends "base_generic.html" %}
+{% block title %}Activities for {{ login.firstName }} {{ login.userName }} 
+{% endblock %} 
+{% block content %}
+
+<h1>Updated Activity List</h1>
+
+{% for activity in updateactivities_list %}
+<h2>
+  <a href="{% url 'strava2:workout' activity.wid %}" >
+    {{ activity.strTime|lower }} : {{ activity.strDist }} km ( {{activity.type }})
+  </a>
+</h2>
+{% endfor %}
+
+{% endblock %}

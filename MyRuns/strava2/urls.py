@@ -10,6 +10,7 @@ urlpatterns = [
     re_path(r'^(?P<loginId>[0-9]+)/$', views.login, name='login'),
     re_path(r'activities/.*$', views.ActivitiesView.as_view(), name='activities'),
     re_path(r'getProgress/.*$', views.getProgress, name='getProgress'),
+    re_path(r'upload/.*$', views.uploadFiles, name='uploadFiles'),
     re_path(r'callback/.*$', views.auth, name='auth'),
     re_path(r'refresh/.*$', views.refresh, name='refresh'),
     re_path(r'getActivities/', views.getActivitiesView, name='getActivities'),

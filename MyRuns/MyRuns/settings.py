@@ -45,6 +45,7 @@ INSTALLED_APPS = (
     'rest_framework.authtoken',
     'corsheaders',
     'celery_progress',
+    'channels',
 )
 
 MIDDLEWARE = (
@@ -116,6 +117,16 @@ REST_FRAMEWORK = {
    ),
 	'PAGE_SIZE': 10
 }
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('localhost', 6379)],
+        },
+    }
+}
+ASGI_APPLICATION = "MyRuns.routing.application"
 
 ANGULAR_APP_DIR = os.path.join(BASE_DIR, 'frontend/dist')
 SVG_DIR = os.path.join(BASE_DIR, 'static/assets')

@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404, render, redirect
 from strava2.models import Login, Activity, Workout, Lap, GpsCoord, HeartRate, \
     Speed, Elevation, Distance, Split, StravaUser
-from strava2.tasks import get_activities
+from strava2.tasks import get_activities, processFit
 from django.views import generic
 from django.http import JsonResponse
 from stravalib import Client
@@ -13,11 +13,29 @@ from rest_framework.response import Response
 from rest_framework import status
 from strava2.serializers import WorkoutSerializer, LapSerializer, ActivityItemSerializer
 from strava2.stravaModel import gpsCoord
-import sys
+import sys, os
 from celery.result import AsyncResult
+import json
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
+import swagger_client
+from swagger_client.rest import ApiException
+from pprint import pprint
+from urllib.parse import urlparse
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import requests
+from django import forms
+from django.views.decorators.csrf import csrf_exempt
+from fitparse import FitFile
 
 _loginId = 0
 _progress = {}
+
+class UploadFileForm(forms.Form):
+    title = forms.CharField(max_length=50)
+    file = forms.FileField()
 
 class IndexView(generic.ListView):
     template_name = 'strava2/index.html'
@@ -37,9 +55,13 @@ def login(request,loginId):
     request.session['loginID'] = loginId
     _loginId=loginId
     client = Client()
-    url = client.authorization_url(client_id=login.clientID,
-                                   scope='write',
-                                   redirect_uri=login.callbackURL)
+    #url = client.authorization_url(client_id=login.clientID,
+    #                               scope='write',
+    #                               redirect_uri=login.callbackURL)
+    #print ('url=',url)
+    #return redirect(url)
+    
+    #return redirect(login.url+'/?client_id='+login.clientID+'&redirect_uri='+login.callbackURL+'&response_type=code'+'&scope=read,read_all,activity:read_all,profile:read_all')
     return redirect(login.url+'/?client_id='+login.clientID+'&redirect_uri='+login.callbackURL+'&response_type=code')
 
 def auth(request):
@@ -47,6 +69,8 @@ def auth(request):
     print ("Auth")
     code = request.GET.get('code')
     print ("code=",code)
+    scope = request.GET.get('scope')
+    print ("scope=",scope)
     login = get_object_or_404(Login, pk=_loginId)
     client = Client()
     access_token = client.exchange_code_for_token(client_id=login.clientID,
@@ -67,19 +91,50 @@ def getProgress(request):
     # print ('Receive getProgress request ...')
     return JsonResponse(data)
     
+@csrf_exempt
+def uploadFiles(request):
+    print ('Receive uploadFiles request ...')
+    global _loginId
+    if request.method == 'POST':
+        print ('POST request')
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            #handle_uploaded_file(request.FILES['file'])
+            print ('Form is Valid')
+            print (request.FILES['file'])
+        else:
+            print (request.FILES['file'])
+            f = '/tmp/'+str(request.FILES['file'])
+            with open(f, 'wb+') as destination:
+                for chunk in request.FILES['file'].chunks():
+                    destination.write(chunk)
+                extension = os.path.splitext(f)[1][1:]
+                print ('file ext=',extension)
+                if (extension=='fit'):
+                    print ('Process Fit File ...')
+                    result = processFit.delay (_loginId, request.session.get('access_token'),f)
+                    print ('return do_work, tidFit=',result)
+                    request.session['tidFit'] = result.task_id
+                
+    else:
+        print ('UploadFileForm constructor')
+        form = UploadFileForm()
+    
+    data = {'value': 0}
+    return JsonResponse(data)
+    
 def refresh(request):
     print ('refresh', request)
     return redirect('/strava2/updateActivities')
     
-    
 def getActivitiesView(request):
     global _loginId
 
-    print (' >>>> getActivitiesView, get_queryset')
+    #print (' >>>> getActivitiesView, get_queryset')
     client = Client(request.session.get('access_token'))
     print (' >>>> getActivitiesView, client=',client)
     act = Activity.objects.filter(uid=client.get_athlete().id).order_by('-strTime')
-    print (' >>>> getActivitiesView, acts=',act)
+    #print (' >>>> getActivitiesView, acts=',act)
     tid = request.session.get('task_id')
     result = AsyncResult(tid)
     print (' >>>> getActivitiesView, state=',result.state)
@@ -91,14 +146,28 @@ def getActivitiesView(request):
         serializer = ActivityItemSerializer(actItem)
         #print ('serializer.data: ',serializer.data)
         actList.append(serializer.data)
-        
+    
+    #if (result.info['total'] is None):
+    #    result.info['total'] = 0
+    #if (result.info['current'] is None):
+    #    result.info['current'] = 0
     data = {
         'nbAct': result.info['total'],
         'currentAct': result.info['current'],
         'activities': actList
         }
-        
-    print ('data=',data)
+
+    channel_layer = get_channel_layer()
+    strUser = StravaUser.objects.filter(firstname='Francois')
+    print ("Send message ...", channel_layer, strUser[0].channel_name)
+    async_to_sync(channel_layer.send)(
+        strUser[0].channel_name,
+        {
+            "type": "send_message",
+            "message": "CnxOK"
+        }
+    )
+    #print ('data=',data)
     return JsonResponse(data)
 
 class ActivitiesView(generic.ListView):
@@ -108,6 +177,17 @@ class ActivitiesView(generic.ListView):
     context_object_name = 'activities_list'
 
     def get_queryset(self):
+    
+        #swagger_client.configuration.access_token = self.request.session.get('access_token')
+        #api_instance = swagger_client.ActivitiesApi()
+        #print ('api_instance=',api_instance)
+        #before = 56 # Integer | An epoch timestamp to use for filtering activities that have taken place before a certain time. (optional)
+        #after = 56 # Integer | An epoch timestamp to use for filtering activities that have taken place after a certain time. (optional)
+        #page = 56 # Integer | Page number. (optional)
+        #per_page = 56
+        #api_response = api_instance.get_logged_in_athlete_activities(before=before, after=after, page=page, per_page=per_page)
+        #pprint(api_response)
+    
         self.client = Client(self.request.session.get('access_token'))
         self.result = get_activities.delay (_loginId, self.request.session.get('access_token'))
         print ('return do_work, tid=',self.result)
@@ -126,8 +206,8 @@ class ActivitiesView(generic.ListView):
         login.firstName = user.firstname
         context['login'] = login
         context['task_id'] = self.result.task_id
-        print ('context=',context)
-        print ('Request=',self.request)
+        #print ('context=',context)
+        #print ('Request=',self.request)
         return context
 
 class WorkoutView(generic.DetailView):
