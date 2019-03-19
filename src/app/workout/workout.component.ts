@@ -16,6 +16,8 @@ import { jqxTooltipComponent  } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqx
 import { WorkoutService, Gps, Heartrate, ActivityItem, Lap, Workout, 
   lapSelection, Split, infos, Login } from '../workout.service';
 
+declare const require: any;
+const  EasyFit = require('easy-fit/dist/easy-fit.js').default;
 
 declare var google: any;
 
@@ -1339,6 +1341,8 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
     }
     
   }
+
+
 
   onDblClickBand (band : any) {
 

@@ -1,36 +1,69 @@
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-<div *ngIf="!initDone && nbAct>0" class="progress">
-  <div>
-        {{currentAct}} / {{nbAct}}
-  </div>
-  <div style="width: 10px;"> </div>
-  <div class="progressBar">
-	    <mat-progress-bar
-	        [color]="'primary'"
-	        [mode]="'determinate'"
-	        [value]="progressValue"
-	        [bufferValue]="'50'">
-	    </mat-progress-bar>
-  </div>
+<div class="row">
+
+	<div  [ngClass]="{
+		'leftDiv':!isMobile,
+		'leftDiv-mobile':isMobile
+		}">
+		<div *ngIf="!initDone && nbAct>0" class="progress">
+			<div>
+						{{currentAct}} / {{nbAct}}
+			</div>
+			<div style="width: 10px;"> </div>
+			<div class="progressBar">
+					<mat-progress-bar
+							[color]="'primary'"
+							[mode]="'determinate'"
+							[value]="progressValue"
+							[bufferValue]="'50'">
+					</mat-progress-bar>
+			</div>
+		</div>
+		<mat-nav-list class="list-act" [ngClass]="{
+				'list-act':!isMobile,
+				'list-act-mobile':isMobile
+			}">
+			<a mat-list-item id="my-list" *ngFor="let link of listActivities" (click)="onClickItem(link)"> 
+				<div class="line">
+						<div class="begin">
+							<b>{{ link.strTime }}</b>: {{ link.label}}  ({{ link.strDist }} km / {{link.time}})
+						</div>
+						<div class="end">
+							<svg width="50" height="35" class="iconActivity"> 
+								<path [attr.d]="srv.typeIcon[link.type].path" [attr.fill]="srv.typeIcon[link.type].color" />
+							</svg>
+					</div>
+				</div>
+			</a>
+		</mat-nav-list>
+	</div>
+
+	<div *ngIf="!isMobile" style="width: 60%;float:right;">
+		<div  class="dropList">
+			<file-drop headertext=" ===== Drop file to import here =====" (onFileDrop)="dropped($event)" 
+			(onFileOver)="fileOver($event)" (onFileLeave)="fileLeave($event)">
+			</file-drop>
+			<div class="upload-table">
+					<button mat-icon-button *ngIf="nbFiles>0" matTooltip="Process upload files" 
+							(click)="onClickImport()">
+							<mat-icon aria-label="Load file">open_in_browser</mat-icon>
+					</button>
+					<table class="table">
+							<tbody class="upload-name-style">
+									<tr *ngFor="let item of files; let i=index">
+											<td><strong>{{ item.relativePath }}</strong></td>
+									</tr>
+							</tbody>
+					</table>
+			</div>
+		</div>
+	</div>
+
 </div>
 
 
 
-<mat-nav-list class="list-act" [ngClass]="{
-    'list-act':!isMobile,
-    'list-act-mobile':isMobile
-  }">
-<a mat-list-item id="my-list" *ngFor="let link of listActivities" (click)="onClickItem(link)"> 
-	<div class="line">
-    	<div class="begin">
-	    	<b>{{ link.strTime }}</b>: {{ link.label}}  ({{ link.strDist }} km / {{link.time}})
-	    </div>
-	    <div class="end">
-	    	<svg width="50" height="35" class="iconActivity"> 
-		      <path [attr.d]="srv.typeIcon[link.type].path" [attr.fill]="srv.typeIcon[link.type].color" />
-		    </svg>
-		</div>
-	</div>
-</a>
-</mat-nav-list>
+
+
 

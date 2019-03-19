@@ -1,5 +1,21 @@
-.list-container {
- 
+  
+.dropList {
+    display: flex;
+    justify-content: center;
+}
+
+.row {
+    display: flex;
+  }
+
+#leftDiv { 
+    width: 100%; 
+    float: left;
+}
+
+#leftDiv-mobile { 
+    width: 100%; 
+    float: left;
 }
 
 .progress {
@@ -28,7 +44,7 @@
  }
 
  .list-act-mobile {
-  width: 100%%;
+  width: 100%;
  }
 
  .mat-nav-list >  .mat-list-item:nth-child(2n+1){

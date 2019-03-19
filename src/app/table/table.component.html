@@ -1,4 +1,4 @@
-<div class="table-container">
+<div [ngClass]="{'table-container':!isMobile,'table-container-mobile':isMobile}">
    <mat-table #table [dataSource]="dataSource" [ngStyle]="{}" cdkDropList [cdkDropListData]="dataSource"
  (cdkDropListDropped)="dropTable($event)">
 
@@ -49,8 +49,7 @@
             <div class="custom-placeholder" *cdkDragPlaceholder></div>
 	    </mat-row>
 	    <mat-row *matRowDef="let row; columns: ['expandedDetail']; when: isExpansionDetailRow"
-	            [@detailExpand]="expansionDetailRowCollection.includes(row.element) ? 'expanded' : 'collapsed'"
-	            style="overflow: hidden;text-align: left;"> 
+	            [@detailExpand]="expansionDetailRowCollection.includes(row.element) ? 'expanded' : 'collapsed'" style="overflow: hidden;text-align: left;"> 
 	    </mat-row>
 		    
    </mat-table> 

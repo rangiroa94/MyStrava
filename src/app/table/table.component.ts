@@ -22,6 +22,7 @@ import {CdkDragDrop} from '@angular/cdk/drag-drop';
 })
 export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   @Input() wkt: Workout;
+  @Input() isMobile: boolean;
   @Output() lapSelected: EventEmitter<lapSelection>  = new EventEmitter<lapSelection>();
   @Output() lapInfos: EventEmitter<infos>  = new EventEmitter<infos>();
   @Output() initTable: EventEmitter<number>  = new EventEmitter<number>();
@@ -43,13 +44,11 @@ export class TableComponent implements OnInit, OnChanges, AfterContentInit  {
   sumDist: number=0;
   infosLap: infos[] = new Array<infos>();
   srv: WorkoutService;
-  isMobile: boolean;
 
   constructor( private changeDetectorRefs: ChangeDetectorRef, 
                 private wktService: WorkoutService ) { 
     console.log('TableComponent');
     this.srv = wktService;
-    this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   }
 
   ngOnInit() {

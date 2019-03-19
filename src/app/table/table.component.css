@@ -8,8 +8,9 @@
 
 .table-container-mobile {
   position: absolute;
+  height: calc(90% - 80px);
   width:95%; 
-  overflow: auto;
+  overflow-y: auto;
 }
 
 .mat-table {

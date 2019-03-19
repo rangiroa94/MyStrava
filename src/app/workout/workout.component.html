@@ -281,7 +281,7 @@
               </mat-option>
             </mat-select>
           </mat-form-field>
-            <app-table id="lapTable" *ngIf="w1" [wkt]="w1" 
+            <app-table id="lapTable" *ngIf="w1" [wkt]="w1" [isMobile]="isMobile"
                   (lapSelected)="onLapSelected($event)"
                   (lapInfos)="onLapInfos($event)"
                   (initTable)="updateWatchLapTable($event)">

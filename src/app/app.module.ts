@@ -18,9 +18,12 @@ import { ListComponent } from './listActivity/list.component';
 
 import { jqxChartComponent } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxchart';
 import { jqxTooltipComponent } from "jqwidgets-scripts/jqwidgets-ts/angular_jqxtooltip";
+import { FileDropModule } from 'ngx-file-drop';
 
 import { WorkoutService } from './workout.service';
-
+import { UploadService } from './upload.service';
+import { WebsocketService } from './websocket.service';
+import { StreamService } from './stream.service';
 
 @NgModule({
   declarations: [
@@ -33,6 +36,7 @@ import { WorkoutService } from './workout.service';
   ],
   imports: [
   BrowserModule,
+  FileDropModule,
 	AgmCoreModule.forRoot({
 		apiKey: 'AIzaSyDx11Zx5Y73y-OyG5LmZWUg4_96nv5BtYA'
 	}),
@@ -64,7 +68,10 @@ import { WorkoutService } from './workout.service';
 	HttpClientModule
   ],
   providers: [GoogleMapsAPIWrapper,
-              WorkoutService
+              WorkoutService,
+              UploadService,
+              WebsocketService,
+              StreamService
               ],
   bootstrap: [AppComponent]
 })
