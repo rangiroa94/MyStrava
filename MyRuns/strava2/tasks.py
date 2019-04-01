@@ -1,17 +1,22 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
+from django.shortcuts import get_object_or_404
 
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from strava2.models import Login, Activity, Workout, Lap, GpsCoord, HeartRate, \
     Speed, Elevation, Distance, Split, StravaUser
+from strava2.serializers import WorkoutSerializer, LapSerializer, ActivityItemSerializer
 import re
 from datetime import datetime, date, timedelta
 from stravalib import Client
 
 import sys, os
 from fitparse import FitFile
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 def getSpeed (speed):
     speed = 100/speed
@@ -35,28 +40,39 @@ def getTimeDelta (time):
     date = timedelta(hours=hh,minutes=mm,seconds=ss)
     return date
 
+def sendMessage (data, channel):
+    channel_layer = get_channel_layer()
+    print ("Send message (task) ...", channel_layer, channel)
+    async_to_sync(channel_layer.send)(
+        channel,
+        {
+            "type": "send_message",
+            "message": data
+        }
+    )
+    
+def sendProgress (channel, value):
+    data = {
+        'progress': value,
+        'workout': []
+        }
+    sendMessage (data, channel)
+    
 PROGRESS_STATE = 'PROGRESS'
 
 @shared_task(bind=True)
-def get_activities (self, loginId, token):
+def get_activities (self, token):
 
     client = Client(token)
-    login = get_object_or_404(Login, pk=loginId)
     user = client.get_athlete()
     
     # Update StavaUser
     lastUpdate=datetime.now()
     strUser = StravaUser.objects.filter(uid=user.id)
-    if not strUser.exists():
-        print ('create user', )
-        user2 = StravaUser(uid=user.id, lastname=user.lastname, firstname=user.firstname, \
-            lastUpdate=datetime.now())
-        user2.save()
-    else:
-        print ('strUser=',strUser)
-        for u in strUser:
-            lastUpdate = u.lastUpdate
-        print ('lastUpdate=',lastUpdate)
+    print ('strUser=',strUser)
+    for u in strUser:
+        lastUpdate = u.lastUpdate
+    print ('lastUpdate=',lastUpdate)
         
     #d = datetime(2018, 5, 5)
     date_1_day_ago = lastUpdate - timedelta(days=1)
@@ -71,6 +87,14 @@ def get_activities (self, loginId, token):
         
     print ('NbAct=',nbAct)
     progress_recorder = ProgressRecorder(self)
+    
+    currentList = Activity.objects.filter(uid=client.get_athlete().id).order_by('-strTime')
+    actList = []
+    for actItem in currentList:
+        #print (actItem)
+        serializer = ActivityItemSerializer(actItem)
+        #print ('serializer.data: ',serializer.data)
+        actList.append(serializer.data)
     
     for activity in activities:
         StravaUser.objects.filter(uid=user.id).update(currentActIndex=nbItem, nbActToRetreive=nbAct)
@@ -111,17 +135,130 @@ def get_activities (self, loginId, token):
                     Split(split_index=i,split_distance=split.distance,split_time=split.elapsed_time,workout=workout) for i, split in enumerate(act.splits_metric)
                 ]
                 split = Split.objects.bulk_create(objs)
+                
+            # Send result to client
+            for actItem in Activity.objects.filter(stravaId=activity.id):
+                #print (actItem)
+                serializer = ActivityItemSerializer(actItem)
+                #print ('serializer.data: ',serializer.data)
+                actList.insert(0,serializer.data)
         else:
             Activity.objects.filter(stravaId=activity.id).update(strTime=strDate,strDist=strDistance)
         
         nbItem+=1
-            
-    if act is not None : 
-        StravaUser.objects.filter(uid=user.id).update(lastUpdate=datetime.now())
         
-    #return str(user.id)
+        data = {
+        'nbAct': nbAct,
+        'currentAct': nbItem,
+        'activities': actList
+        }
+        sendMessage (data,strUser[0].channel_name)
+    
+    if act is not None : 
+        strUser.update(lastUpdate=datetime.now())
+    
     return {'current': nbItem, 'total': nbAct}
 
+@shared_task(bind=True)
+def get_workout (self, token, pk):
+
+    client = Client(token)
+    user = client.get_athlete()
+    strUser = StravaUser.objects.filter(uid=user.id)
+    
+    sendProgress (strUser[0].channel_name,5)
+    
+    workout = Workout.objects.get(pk=pk)
+    types = ['time', 'distance', 'latlng', 'altitude', 'heartrate', 'velocity_smooth']
+    print('WorkoutDetail, workout.actId=',workout.actId)
+    activity = get_object_or_404(Activity, id=workout.actId)
+    print('WorkoutDetail, activity.stravaId=',activity.stravaId)
+    streams = client.get_activity_streams(activity_id=activity.stravaId,resolution='medium',types=types)
+    sendProgress (strUser[0].channel_name,10)
+    print ('streams=',streams)
+    #print('time seq size=',len(streams['time'].data))
+    #print('dist seq',streams['distance'].data)
+    #print('speed seq',streams['velocity_smooth'].data)
+    #print('elevation seq',streams['altitude'].data)
+    #print('HR seq',streams['heartrate'].data)
+    #print('gps seq',streams['latlng'].data)
+    gps = GpsCoord.objects.filter(workout__id=workout.id)
+    print ('gps first element=',gps.count())
+    if not gps.count() and 'latlng' in streams:
+        print ('empty query, create SQL record')
+        objs = [
+            GpsCoord(gps_index=i,gps_time=streams['time'].data[i],gps_lat=gps[0],gps_long=gps[1],workout=workout) for i, gps in enumerate(streams['latlng'].data)
+        ]
+        #print ('GPS seq')
+        #for i, gps in enumerate(streams['latlng'].data):
+        #    print ('gps_index:',i,'gps_lat:',gps[0],'gps_long:',gps[1],'gps_time:',streams['time'].data[i])
+        coord = GpsCoord.objects.bulk_create(objs)
+
+    sendProgress (strUser[0].channel_name,20)
+    hr = HeartRate.objects.filter(workout__id=workout.id)
+    if not hr.count() and 'heartrate' in streams:
+        objs = [
+            HeartRate(hr_index=i,hr_value=hr,workout=workout) for i, hr in enumerate(streams['heartrate'].data)
+        ]
+        coord = HeartRate.objects.bulk_create(objs)
+    
+    sendProgress (strUser[0].channel_name,25)
+    distance = Distance.objects.filter(workout__id=workout.id)
+    if not distance.count() and 'distance' in streams:
+        objs = [
+            Distance(distance_index=i,distance_value=dist,workout=workout) for i, dist in enumerate(streams['distance'].data)
+        ]
+        coord = Distance.objects.bulk_create(objs)
+        
+    speed = Speed.objects.filter(workout__id=workout.id)
+    if not speed.count() and 'velocity_smooth' in streams:
+        objs = [
+            Speed(speed_index=i,speed_value=speed,workout=workout) for i, speed in enumerate(streams['velocity_smooth'].data)
+        ]
+        coord = Speed.objects.bulk_create(objs)
+    
+    sendProgress (strUser[0].channel_name,30)
+    elevation = Elevation.objects.filter(workout__id=workout.id)
+    if not elevation.count() and 'altitude' in streams:
+        objs = [
+            Elevation(elevation_index=i,elevation_value=elevation,workout=workout) for i, elevation in enumerate(streams['altitude'].data)
+        ]
+        coord = Elevation.objects.bulk_create(objs)
+    
+    sendProgress (strUser[0].channel_name,35)
+    laps = client.get_activity_laps(activity.stravaId)
+    i=0
+    for strLap in laps:
+        i+=1
+        print ('lap=',strLap)
+        print ('strLap,start_index=',strLap.start_index)
+        print ('strLap,end_index=',strLap.end_index)
+        print ('strLap,lap_average_cadence=',strLap.average_cadence)
+        print ('start_date=',strLap.start_date)
+        print ('lap_time=',strLap.elapsed_time)
+        print ('lap_distance=',strLap.distance)
+        print ('lap_pace_zone=',strLap.pace_zone)
+        if strLap.pace_zone is None:
+            strLap.pace_zone = 0
+        if strLap.average_cadence is None:
+            strLap.average_cadence=0;
+        lap = Lap.objects.filter(workout__id=workout.id, lap_index=i)
+        if not lap.exists():
+            lap = Lap.objects.create(lap_index=strLap.lap_index, lap_start_index=strLap.start_index, lap_end_index=strLap.end_index, lap_distance=strLap.distance, lap_time=strLap.elapsed_time, lap_start_date=strLap.start_date, lap_average_speed=strLap.average_speed, lap_average_cadence=strLap.average_cadence, lap_pace_zone=strLap.pace_zone, lap_total_elevation_gain=strLap.total_elevation_gain, workout=workout)
+            print ('total_elevation_gain=',strLap.total_elevation_gain)
+            print ('pace_zone=',strLap.pace_zone)
+            
+    sendProgress (strUser[0].channel_name,40)
+    serializer = WorkoutSerializer(workout)
+    print ('serializer.data size=',sys.getsizeof(serializer.data))
+    sendProgress (strUser[0].channel_name,55)
+
+    data = {
+        'progress': 55,
+        'workout': serializer.data
+        }
+    sendMessage (data,strUser[0].channel_name)
+    
 @shared_task(bind=True)
 def processFit (self, loginId, token, file):
 
