@@ -1,16 +1,16 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <div class="row">
-
+	<div style="width: 30px;">  </div>
 	<div  [ngClass]="{
 		'leftDiv':!isMobile,
 		'leftDiv-mobile':isMobile
 		}">
 		<div *ngIf="!initDone && nbAct>0" class="progress">
-			<div>
-						{{currentAct}} / {{nbAct}}
+			<div style="width: 40px;">
+				{{currentAct}} / {{nbAct}}
 			</div>
-			<div style="width: 10px;"> </div>
+			<div style="width: 20px;"> </div>
 			<div class="progressBar">
 					<mat-progress-bar
 							[color]="'primary'"

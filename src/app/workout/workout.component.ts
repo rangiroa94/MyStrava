@@ -15,6 +15,7 @@ import { jqxChartComponent  } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxch
 import { jqxTooltipComponent  } from 'jqwidgets-scripts/jqwidgets-ts/angular_jqxtooltip';
 import { WorkoutService, Gps, Heartrate, ActivityItem, Lap, Workout, 
   lapSelection, Split, infos, Login } from '../workout.service';
+import { StreamService } from "../stream.service";
 
 declare const require: any;
 const  EasyFit = require('easy-fit/dist/easy-fit.js').default;
@@ -151,6 +152,7 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
 
   w1: Workout;
   srv: WorkoutService;
+  srvWs: StreamService;
   workout$: Observable<Workout[]>;
 
   @ViewChild('AgmMap') agmMap: AgmMap;
@@ -160,9 +162,11 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
     private gmapsApi: GoogleMapsAPIWrapper, 
     private changeDetectorRefs: ChangeDetectorRef,
     private route: ActivatedRoute,
-    private wktService: WorkoutService) {
+    private wktService: WorkoutService,
+    private streamSrv : StreamService) {
 
     this.srv = wktService;
+    this.srvWs = streamSrv;
     this.newInnerHeight = window.innerHeight;
     this.newInnerWidth = window.innerWidth;
 
@@ -170,6 +174,8 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
 
     this.lapInfos.show = false;
     this.showSettings = false;
+
+    console.log("Constructor devMode=",this.devMode);
 
   }
 
@@ -188,8 +194,24 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
       console.log('Mobile detected !!');
       this.showLaps = false;
     }
-    this.showProgress();
-    this.getWorkout(this.wid, this.devMode);
+    if (!this.devMode) {
+        this.srvWs.messages.subscribe(msg => {
+        console.log("Response from websocket (workout): msg= ",msg.message);
+        this.progressValue = msg.message['progress'];
+        if (typeof msg.message['workout']['actId'] !== 'undefined')
+          this.buildWorkout(msg.message['workout']);
+        });
+        let message = {
+          firstname: this.srvWs.firstname,
+          lastname: this.srvWs.lastname,
+          message: String(this.wid)
+        };
+        this.srvWs.messages.next(message);
+    } else {
+        this.showProgress();
+        this.getWorkout(this.wid, this.devMode);
+    }
+    
     this.updateView();
       
     this.selectedWindow = this.winLap;
@@ -229,6 +251,12 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
     }
       
     this.http.get(this.urlworkout).subscribe((w: Workout) => { 
+      this.buildWorkout(w);
+    });
+
+  }
+
+  public buildWorkout(w: Workout) {
       this.w1 = w;
       console.log('w=',w);
 
@@ -361,9 +389,6 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
       clearInterval(this.progressTimer);
 
       if (this.w1.gpsCoord.length>0) this.displayTrends();
-
-    });
-
   }
 
   computeWatchLapIndex ( startIdx: number, correction: number ) {

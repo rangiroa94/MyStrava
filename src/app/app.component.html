@@ -4,6 +4,7 @@
 <div *ngIf="route.children.length === 0">
     <h1> Activities for {{ login.firstname }} {{ login.lastname }} </h1>
     <app-list *ngIf="initOK" [mode]="devMode"  [phase]="phase" [listActivities]="listAct" 
+    [lastname]="login.lastname" [firstname]="login.firstname"
     (initPhase)="onInitPhase($event)" (activities)="onActivities($event)">  </app-list> 
 </div>
 

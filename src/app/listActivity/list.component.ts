@@ -33,6 +33,8 @@ export class ListComponent implements OnInit, OnChanges  {
 
   @Input() mode: boolean;
   @Input() phase: number;
+  @Input() lastname: string;
+  @Input() firstname: string;
   @Input() listActivities: Array<ActivityItem>;
   @Output() initPhase: EventEmitter<number>  = new EventEmitter<number>();
   @Output() activities: EventEmitter<any>  = new EventEmitter<any>();
@@ -45,7 +47,7 @@ export class ListComponent implements OnInit, OnChanges  {
   isMobile: boolean;
 
   username: string = "YYYYY";
-  firstname: string = "XXXXX";
+  
   progressTimer: any;
   initDone: boolean = false;
   nbAct : number = 0;
@@ -66,7 +68,7 @@ export class ListComponent implements OnInit, OnChanges  {
                 private wktService: WorkoutService,
                 private upSrv : UploadService,
                 private streamSrv : StreamService ) { 
-    console.log('ListComponent');
+    console.log('ListComponent, user=', this.firstname, this.lastname);
 
     this.srv = wktService;
     this.uploadSrv = upSrv;
@@ -74,18 +76,32 @@ export class ListComponent implements OnInit, OnChanges  {
     this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (this.isMobile) {
       console.log('Mobile detected !!');
-    }
+    } 
 
-    streamSrv.messages.subscribe(msg => {
-      console.log("Response from websocket: auth= ",msg.author," message=",msg.message);
-      if (msg.message=="accept") {
-        let message = {
-          author: "francois.libespere",
-          message: "Authentication"
-        };
-        streamSrv.messages.next(message);
-      }
-    });
+    if (!this.mode) {
+       streamSrv.messages.subscribe(msg => {
+        console.log("Response from websocket: auth= ",msg.lastname," message=",msg.message);
+        if (msg.message=="accept") {
+          let message = {
+            firstname: this.firstname,
+            lastname: this.lastname,
+            message: "Authentication"
+          };
+          streamSrv.firstname = this.firstname;
+          streamSrv.lastname = this.lastname;
+          streamSrv.messages.next(message);
+        } else {
+          this.listActivities = Object.assign([], msg.message['activities']);
+          this.progressValue = 100*(this.currentAct/this.nbAct);
+          this.currentAct = msg.message['currentAct'];
+          this.nbAct = msg.message['nbAct'];
+          this.activities.emit (this.listActivities);
+          if (this.currentAct >= this.nbAct) {
+              this.initDone = true;
+          }
+        }
+      });
+    }
 
   }
 
@@ -100,13 +116,13 @@ export class ListComponent implements OnInit, OnChanges  {
     console.log ('mode=',this.mode);
     console.log ('phase=',this.phase);
     console.log ('ngOnInit, listAct=',this.listActivities);
-    this.getdata();
-
-    console.log ('this.urlList=',this.urlList);
-    this.progressTimer = setInterval(() => {
+    if (this.mode) { 
         this.getdata();
-    }, 2000);
- 
+        this.progressTimer = setInterval(() => {
+          this.getdata();
+      }, 2000);
+    }
+    console.log ('this.urlList=',this.urlList);
 
   }
 
