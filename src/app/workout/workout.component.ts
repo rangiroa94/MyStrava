@@ -45,6 +45,7 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
   @ViewChild('myChart') myChart: jqxChartComponent; 
   @ViewChild('myToolTip') myToolTip: jqxTooltipComponent ;
   @Output() initPhase: EventEmitter<number>  = new EventEmitter<number>();
+  @Output() activities: EventEmitter<any>  = new EventEmitter<any>();
 
   title = 'MyStrava';
   /* url : string = 'http://fakarava94.no-ip.org:3000/workout/'; */
@@ -195,13 +196,27 @@ export class WorkoutComponent implements AfterViewInit, OnInit  {
       this.showLaps = false;
     }
     if (!this.devMode) {
+
         this.srvWs.messages.subscribe(msg => {
         console.log("Response from websocket (workout): msg= ",msg.message);
-        this.progressValue = msg.message['progress'];
-        if (typeof msg.message['workout']['actId'] !== 'undefined')
-          this.buildWorkout(msg.message['workout']);
+          switch(msg.type) { 
+            case 'progressWorkout': { 
+              this.progressValue = msg.message['progress']; 
+              break; 
+            } 
+            case 'actList': { 
+              this.srv.updateList(msg.message['activities'], this.devMode);
+              break; 
+            }
+            case 'workout': { 
+              this.buildWorkout(msg.message['workout']);
+              break; 
+            } 
+          }
         });
+
         let message = {
+          type: 'workout',
           firstname: this.srvWs.firstname,
           lastname: this.srvWs.lastname,
           message: String(this.wid)

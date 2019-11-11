@@ -8,7 +8,7 @@ import { Router, ActivatedRoute } from "@angular/router";
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { MatTabChangeEvent } from '@angular/material';
 import { DatePipe } from '@angular/common';
-import { WorkoutService, Workout, Lap, lapSelection, infos, ActivityItem } from '../workout.service';
+import { WorkoutService, Workout, Lap, lapSelection, infos, ActivityItem, listAct } from '../workout.service';
 import {CdkDragDrop} from '@angular/cdk/drag-drop';
 import { UploadEvent, UploadFile, FileSystemFileEntry, 
   FileSystemDirectoryEntry } from 'ngx-file-drop';
@@ -16,6 +16,7 @@ import {TooltipPosition} from '@angular/material';
 import { UploadService } from '../upload.service'; 
 import { WebsocketService } from '../websocket.service';
 import { StreamService } from "../stream.service";
+import { FindValueOperator } from 'rxjs/internal/operators/find';
 
 @Component({
   selector: 'app-list',
@@ -34,8 +35,9 @@ export class ListComponent implements OnInit, OnChanges  {
   @Input() mode: boolean;
   @Input() phase: number;
   @Input() lastname: string;
-  @Input() firstname: string;
-  @Input() listActivities: Array<ActivityItem>;
+  @Input() firstname: string; 
+  @Input() initDone: boolean;
+  // @Input() listActivities: listAct;
   @Output() initPhase: EventEmitter<number>  = new EventEmitter<number>();
   @Output() activities: EventEmitter<any>  = new EventEmitter<any>();
 
@@ -45,11 +47,11 @@ export class ListComponent implements OnInit, OnChanges  {
   url: string;
   urlList: string;
   isMobile: boolean;
+  listActivities: listAct;
 
   username: string = "YYYYY";
   
   progressTimer: any;
-  initDone: boolean = false;
   nbAct : number = 0;
   currentAct: number = 0;
   progressValue: number= 0;
@@ -72,6 +74,7 @@ export class ListComponent implements OnInit, OnChanges  {
 
     this.srv = wktService;
     this.uploadSrv = upSrv;
+    this.listActivities = wktService.listActivities;
     this.router = router;
     this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (this.isMobile) {
@@ -81,28 +84,34 @@ export class ListComponent implements OnInit, OnChanges  {
     if (!this.mode) {
        streamSrv.messages.subscribe(msg => {
         console.log("Response from websocket: auth= ",msg.lastname," message=",msg.message);
-        if (msg.message=="accept") {
-          let message = {
-            firstname: this.firstname,
-            lastname: this.lastname,
-            message: "Authentication"
-          };
-          streamSrv.firstname = this.firstname;
-          streamSrv.lastname = this.lastname;
-          streamSrv.messages.next(message);
-        } else {
-          this.listActivities = Object.assign([], msg.message['activities']);
-          this.progressValue = 100*(this.currentAct/this.nbAct);
-          this.currentAct = msg.message['currentAct'];
-          this.nbAct = msg.message['nbAct'];
-          this.activities.emit (this.listActivities);
-          if (this.currentAct >= this.nbAct) {
-              this.initDone = true;
+        switch(msg.type) { 
+            case 'accept': { 
+              let message = {
+                type: 'Authentication',
+                firstname: this.firstname,
+                lastname: this.lastname,
+                message: ""
+              };
+              streamSrv.firstname = this.firstname;
+              streamSrv.lastname = this.lastname;
+              streamSrv.messages.next(message);
+              break; 
+            }
+            case 'actList': { 
+              this.srv.updateList(msg.message['activities'], this.mode);
+              this.progressValue = 100*(this.currentAct/this.nbAct);
+              this.currentAct = msg.message['currentAct'];
+              this.nbAct = msg.message['nbAct'];
+              if (this.currentAct >= this.nbAct) {
+                  this.initDone = true;
+              }
+              this.listActivities.initDone = this.initDone;
+              break; 
+            }
           }
-        }
+ 
       });
     }
-
   }
 
   ngOnInit() {
@@ -138,7 +147,7 @@ export class ListComponent implements OnInit, OnChanges  {
       this.url = '/strava2/getActivities';
       this.http.get(this.url).subscribe((act: any) => {
           console.log ('Receive activities =', act);
-          this.listActivities = Object.assign([], act['activities']);
+          this.listActivities.list = Object.assign([], act['activities']);
           this.progressValue = 100*(this.currentAct/this.nbAct);
           this.currentAct = act.currentAct;
           this.nbAct = act.nbAct;
@@ -147,46 +156,32 @@ export class ListComponent implements OnInit, OnChanges  {
             clearInterval(this.progressTimer);
             this.initDone = true;
           }
+          this.listActivities.initDone = this.initDone ;
           console.log ('>>> this.activities.emit');
-          this.activities.emit (this.listActivities);
+          // this.activities.emit (this.listActivities);
       });
     } else {
 
         this.url = 'assets/listAct.json';
         this.http.get(this.url).subscribe((act: any) => {
-          console.log ('Receive activities =', act);
-          this.listActivities =[];
+          console.log ('Receive activities, phase=', this.phase );
+          // this.listActivities.list = [];
+          let tmpList: Array<ActivityItem> = [];
           this.isMobile = act.isMobile;
           this.nbAct = act.nbAct;
           console.log ('nbAct =', this.nbAct);
           if (this.phase == 0) {
             for (let i=0; i<act['activities'].length;i++) {
               if (i < this.currentAct+1) {
-                let a = new ActivityItem();
-                a.label = act['activities'][i].label;
-                a.strTime = act['activities'][i].strTime;
-                a.wid = act['activities'][i].wid;
-                a.strDist = act['activities'][i].strDist;
-                a.time = act['activities'][i].time;
-                a.type = act['activities'][i].type;
-                this.listActivities.push(a);
+                console.log ('act i=',act['activities'][i]);
+                tmpList.push( Object.assign({}, act['activities'][i]) );
+                console.log ('tmpList=',tmpList);
+                this.srv.updateList(tmpList, this.mode);
                 this.progressValue = 100*(this.currentAct/this.nbAct);
               }
             }
           } else {
-            act['activities'].forEach(item => {
-                let a = new ActivityItem();
-                a = {
-                  devMode: this.mode,
-                  label: item.label,
-                  strTime: item.strTime,
-                  wid: item.wid,
-                  strDist: item.strDist,
-                  time: item.time,
-                  type: item.type
-                };
-                this.listActivities.push(a);
-              });
+            this.srv.updateList(act['activities'], this.mode);
             this.nbAct = act['activities'].length;
             this.currentAct = this.nbAct;
           }
@@ -195,8 +190,9 @@ export class ListComponent implements OnInit, OnChanges  {
             clearInterval(this.progressTimer);
             this.initDone = true;
           }
-          console.log ('>>> this.activities.emit');
-          this.activities.emit (this.listActivities);
+          this.listActivities.initDone = this.initDone ;
+          console.log ('>>> this.activities.emit: ', this.listActivities);
+          // this.activities.emit (this.listActivities);
         });
               
     }
@@ -206,10 +202,9 @@ export class ListComponent implements OnInit, OnChanges  {
   onClickItem(item: ActivityItem) {
     console.log('item selected=',item);
     item.devMode = this.mode;
-    if (this.initDone) {
+    if (item.progress==100) {
       this.router.navigate (['/workout',{ id: item.wid, devMode: this.mode, isMobile: this.isMobile }]);
     }
-    
   }
 
   dropped(event: UploadEvent) {

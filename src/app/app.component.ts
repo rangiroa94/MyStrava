@@ -9,7 +9,7 @@ import { Router, ActivatedRoute } from "@angular/router";
 import { Observable, of } from 'rxjs';
 import { map, filter } from 'rxjs/operators';
 
-import { WorkoutService, Gps, Heartrate, ActivityItem, Lap, Workout, 
+import { WorkoutService, Gps, Heartrate, ActivityItem, listAct, Lap, Workout, 
   lapSelection, Split, infos, Login } from './workout.service';
 
 
@@ -25,11 +25,12 @@ export class AppComponent implements AfterViewInit {
   /* url : string = 'http://fakarava94.no-ip.org:3000/workout/'; */
 
   devMode: boolean = true;
+  initDone: boolean = false;
   username: string = "YYYYY";
   firstname: string = "XXXXX";
   login: Login;
-  listAct: Array<ActivityItem> = new Array<ActivityItem>();  
-
+  // listAct: Array<ActivityItem> = new Array<ActivityItem>();  
+  list_Activities: listAct;
   urlbase: string = '/strava2/';
   urlworkout: string = 'workoutDetail/';
   urlprogress: string = 'getProgress/';
@@ -87,7 +88,9 @@ export class AppComponent implements AfterViewInit {
       this.login = { firstname: 'Francois', lastname: 'libespere'};
     }
 
-
+    this.list_Activities = new listAct();
+    this.list_Activities.initDone = false;
+    this.list_Activities.list = [];
     this.initOK = true;
     this.srv = wktService;
     
@@ -106,7 +109,10 @@ export class AppComponent implements AfterViewInit {
 
   onActivities (listAct: any) {
     console.log ('>>>>>> AppComponent, onActivities=', listAct);
-    this.listAct = Object.assign([], listAct);
+    console.log ('>>>>>> AppComponent, onActivities, initDone=', listAct.initDone);
+    this.list_Activities.list = Object.assign([], listAct.list);
+    this.list_Activities.initDone = listAct.initDone;
+    this.initDone = listAct.initDone;
   }
 
 }

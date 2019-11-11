@@ -1,5 +1,5 @@
 {
-	"nbAct": 5, 
+	"nbAct": 7, 
 	"currentAct": 0,
 	"isMobile": false,
 	"activities" : [	
@@ -9,7 +9,9 @@
 		"strTime": "01/01/2019",
 		"strDist": "12.50",
 		"time": "01:09:02",
-		"type": "Run"
+		"type": "Run",
+		"state": "c",
+		"progress": "100"
 		},
 		{
 		"wid": 152,   
@@ -17,7 +19,9 @@
 		"strTime": "03/01/2019",
 		"strDist": "8.60",
 		"time": "00:50:56",
-		"type": "Run"
+		"type": "Run",
+		"state": "c",
+		"progress": "100"
 		},
 		{
 		"wid": 153, 
@@ -25,7 +29,9 @@
 		"strTime": "04/01/2019",
 		"strDist": "38.60",
 		"time": "01:20:52",
-		"type": "Ride"
+		"type": "Ride",
+		"state": "c",
+		"progress": "80"
 		},
 		{
 		"wid": 154, 
@@ -33,7 +39,9 @@
 		"strTime": "06/01/2019",
 		"strDist": "1.50",
 		"time": "01:15:32",
-		"type": "Swim"
+		"type": "Swim",
+		"state": "c",
+		"progress": "100"
 		},
 		{
 		"wid": 1555, 
@@ -41,7 +49,29 @@
 		"strTime": "20/01/2019",
 		"strDist": "18.60",
 		"time": "01:30:00",
-		"type": "Run"
+		"type": "Run",
+		"state": "c",
+		"progress": "50"
+		},
+		{
+		"wid": 151, 
+		"label": "Course à pied le soir",
+		"strTime": "01/01/2019",
+		"strDist": "15.80",
+		"time": "01:12:02",
+		"type": "Run",
+		"state": "u",
+		"progress": "100"
+		},
+		{
+		"wid": 1555, 
+		"label": "Course à pied le matin",
+		"strTime": "20/01/2019",
+		"strDist": "20.00",
+		"time": "01:40:00",
+		"type": "Run",
+		"state": "u",
+		"progress": "85"
 		}
 	]
 }

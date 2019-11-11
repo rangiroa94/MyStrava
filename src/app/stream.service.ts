@@ -6,6 +6,7 @@ import { WebsocketService } from "./websocket.service";
 const STREAM_URL = "ws://fakarava94.no-ip.org:3000/strava2/stream/";
 
 export interface Message {
+  type: string;
   firstname: string;
   lastname: string;
   message: string;
@@ -24,6 +25,7 @@ export class StreamService {
         let data = JSON.parse(response.data);
         console.log ('streamService constructor, data=', data);
         return {
+          type: data.type,
           firstname: data.firstname,
           lastname: data.lastname,
           message: data.message

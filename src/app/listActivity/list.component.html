@@ -24,16 +24,28 @@
 				'list-act':!isMobile,
 				'list-act-mobile':isMobile
 			}">
-			<a mat-list-item id="my-list" *ngFor="let link of listActivities" (click)="onClickItem(link)"> 
+			<a mat-list-item id="my-list" *ngFor="let link of listActivities.list" (click)="onClickItem(link)"> 
 				<div class="line">
-						<div class="begin">
-							<b>{{ link.strTime }}</b>: {{ link.label}}  ({{ link.strDist }} km / {{link.time}})
-						</div>
-						<div class="end">
-							<svg width="50" height="35" class="iconActivity"> 
-								<path [attr.d]="srv.typeIcon[link.type].path" [attr.fill]="srv.typeIcon[link.type].color" />
-							</svg>
+						
+					<div class="begin" >
+						<b>{{ link.strTime }}</b>: {{ link.label }}  ({{ link.strDist }} km / {{link.time}})
 					</div>
+					
+					<div class="end">
+						<svg width="50" height="35" class="iconActivity"> 
+							<path [attr.d]="srv.typeIcon[link.type].path" [attr.fill]="srv.typeIcon[link.type].color" />
+						</svg>
+						<mat-progress-spinner *ngIf="link.progress<100" id="toolbar" class="spinner" 
+							[diameter]="30" 
+							[mode]="'indeterminate'"
+							[strokeWidth]="4"
+							[value]="link.progress">
+						</mat-progress-spinner>
+						<div *ngIf="link.progress<100" style="position:relative; top: 5px; left: -25px;">  
+							{{ link.progress }}
+					</div>
+    </div>
+					
 				</div>
 			</a>
 		</mat-nav-list>
