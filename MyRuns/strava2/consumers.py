@@ -3,7 +3,7 @@ import logging
 from channels.generic.websocket import AsyncWebsocketConsumer, WebsocketConsumer
 from channels.auth import login
 from strava2.models import StravaUser
-from strava2.tasks import get_activities, get_workout
+from strava2.tasks import get_activities, get_workout, processJsonDataBackup
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ class Consumers(AsyncWebsocketConsumer):
         await self.accept()
         await self.send(text_data=json.dumps(
             {
+                "type": "accept",
                 "firstname": "xxx",
                 "lastname": "yyy",
                 "message": "accept",
@@ -35,9 +36,10 @@ class Consumers(AsyncWebsocketConsumer):
         for u in strUser:
             token = u.token
         print ('receive, token=',token)
-        if data['message'] == 'Authentication':
+        if data['type'] == 'Authentication':
             self.result = get_activities.delay (token)
-        else :
+            print ('get_activities task result=',self.result)
+        elif data['type'] == 'workout':
             print ('get Workout message')
             self.result = get_workout.delay (token, data['message'])
         print ('return do_work, tid=',self.result)
@@ -47,6 +49,7 @@ class Consumers(AsyncWebsocketConsumer):
         #print ("Send message, event=",event)
         await self.send(text_data=json.dumps(
             {
+                "type": event["typeMessage"],
                 "firstname": "xxx",
                 "lastname": "yyy",
                 "message": event["message"],

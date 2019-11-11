@@ -15,7 +15,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 class ActivityItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Activity
-        fields = ('label', 'wid', 'strTime', 'strDist', 'time' ,'type')
+        fields = ('label', 'wid', 'strTime', 'strDist', 'time' ,'type', 'state', 'progress')
 
 class LapSerializer(serializers.ModelSerializer):
     class Meta:
@@ -54,6 +54,19 @@ class WorkoutSerializer(serializers.ModelSerializer):
     elevation = ElevationSerializer(many=True)
     distance = DistanceSerializer(many=True)
     split = SplitSerializer(many=True)
+    
+    @staticmethod
+    def setup_eager_loading(queryset):
+        queryset = queryset.prefetch_related(
+            'act',
+            'laps',
+            'gps',
+            'heartrate',
+            'speed',
+            'elevation',
+            'distance',
+            'split')
+        return queryset
     
     class Meta:
         model = Workout

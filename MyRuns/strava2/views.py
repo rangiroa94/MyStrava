@@ -62,7 +62,10 @@ def login(request,loginId):
     #return redirect(url)
     
     #return redirect(login.url+'/?client_id='+login.clientID+'&redirect_uri='+login.callbackURL+'&response_type=code'+'&scope=read,read_all,activity:read_all,profile:read_all')
-    return redirect(login.url+'/?client_id='+login.clientID+'&redirect_uri='+login.callbackURL+'&response_type=code')
+    
+    #return redirect(login.url+'/?client_id='+login.clientID+'&redirect_uri='+login.callbackURL+'&response_type=code')
+    
+    return redirect(login.url+'/?client_id='+login.clientID+'&redirect_uri='+login.callbackURL+'&response_type=code'+'&scope=activity:read')
 
 def auth(request):
     global _loginId
@@ -82,9 +85,10 @@ def auth(request):
     if not strUser.exists():
         print ('create user', )
         strUser = StravaUser(uid=user.id, lastname=user.lastname, firstname=user.firstname, \
-            lastUpdate=datetime.now())
+            lastUpdate=(datetime.now()-timedelta(days=30)), token=access_token)
         strUser.save()
-    strUser.update(token=access_token)
+    else:
+        strUser.update(token=access_token)
     request.session['access_token'] = access_token
     #request.session['access_token'] = 'ff4f273a775a57ce1c7dcc837e18a059370d338c'
     return redirect('/strava2/activities')

@@ -85,8 +85,12 @@ WSGI_APPLICATION = 'MyRuns.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'mysql.connector.django',
+        'NAME': 'MyRuns',
+        'USER': 'fli',
+        'PASSWORD': 'rangi3006++',
+        'HOST': 'localhost',
+        'PORT': '',
     }
 }
 

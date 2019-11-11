@@ -35,8 +35,9 @@ class StravaUser(models.Model):
         return str(self.firstname+'_'+self.lastname)
 
 class Workout(models.Model):
-    name = models.CharField(max_length=20,default='')
-    actId = models.IntegerField(default=0)
+    name = models.CharField(max_length=50,default='')
+    actId = models.BigIntegerField(default=0)
+    jsonData = models.TextField(default='')
     
     def __str__(self):              # __unicode__ on Python 2
         return str(self.id)
@@ -44,9 +45,9 @@ class Workout(models.Model):
 class Activity(models.Model):
     label = models.CharField(max_length=200,default='')
     start_date = models.DateTimeField(default=timezone.now)
-    wid = models.IntegerField(default=0,unique=True)
+    wid = models.BigIntegerField(default=0,unique=True)
     uid = models.IntegerField(default=0)
-    stravaId = models.IntegerField(default=0)
+    stravaId = models.BigIntegerField(default=0)
     distance = models.IntegerField(default=0)
     time = models.CharField(max_length=20,default='')
     strDist = models.CharField(max_length=10,default="")
@@ -54,6 +55,8 @@ class Activity(models.Model):
     workout = models.ForeignKey(Workout, related_name='act', on_delete=models.PROTECT)
     type = models.CharField(max_length=25,default='')
     resolution = models.IntegerField(default=1000)
+    state = models.CharField(max_length=1,default="c")
+    progress = models.IntegerField(default=100)
     
     def __str__(self):              # __unicode__ on Python 2
         return str(str(self.uid)+' '+self.label+' '+self.strDist)
