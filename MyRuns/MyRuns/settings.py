@@ -33,9 +33,6 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS').split(' ')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'unod*cx4wyixgz)fn&gdh+qpe!lcta)dnhze!vyk_n8tblw!4j'
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
