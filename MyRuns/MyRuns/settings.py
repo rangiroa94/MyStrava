@@ -13,9 +13,22 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import mimetypes 
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(BASE_DIR / '.env')
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 print('BASE_DIR=',BASE_DIR)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.getenv('SECRET_KEY')
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.getenv('DEBUG', '0').lower() in ['true', 't', '1']
+
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS').split(' ')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -26,7 +39,7 @@ SECRET_KEY = 'unod*cx4wyixgz)fn&gdh+qpe!lcta)dnhze!vyk_n8tblw!4j'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.68','fakarava94.no-ip.org']
+#ALLOWED_HOSTS = ['192.168.1.68','fakarava94.no-ip.org']
 CORS_ORIGIN_ALLOW_ALL = True
 
 
@@ -84,14 +97,7 @@ WSGI_APPLICATION = 'MyRuns.wsgi.application'
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'mysql.connector.django',
-        'NAME': 'MyRuns',
-        'USER': 'fli',
-        'PASSWORD': 'rangi3006++',
-        'HOST': 'localhost',
-        'PORT': '',
-    }
+    'default': dj_database_url.parse(os.environ.get('DATABASE_URL'), conn_max_age=600),
 }
 
 
