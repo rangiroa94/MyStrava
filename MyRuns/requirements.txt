@@ -1,6 +1,6 @@
 Django==2.0.5
 django-cors-headers==2.2.0
-djangorestframework==3.8.2
+djangorestframework==3.11.2
 mysql-connector-python==8.0.16
 celery==4.2.1
 celery-progress==0.0.3
