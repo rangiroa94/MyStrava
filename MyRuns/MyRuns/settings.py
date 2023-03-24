@@ -95,9 +95,18 @@ WSGI_APPLICATION = 'MyRuns.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
+# postgres://fli:wzRuxiiK4sF0XlkwuRdTsb6VyY58uwQw@dpg-cgecj6pmbg58c1eg129g-a/myruns
+
 
 DATABASES = {
-    'default': dj_database_url.parse(os.environ.get('DATABASE_URL'), conn_max_age=600),
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'myruns',
+        'USER': 'fli',
+        'PASSWORD': 'wzRuxiiK4sF0XlkwuRdTsb6VyY58uwQw',
+        'HOST': 'dpg-cgecj6pmbg58c1eg129g-a',
+        'PORT': '',
+    }
 }
 
 
