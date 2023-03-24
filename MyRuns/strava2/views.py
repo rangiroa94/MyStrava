@@ -20,8 +20,6 @@ import json
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
-import swagger_client
-from swagger_client.rest import ApiException
 from pprint import pprint
 from urllib.parse import urlparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
