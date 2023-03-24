@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 print('BASE_DIR=',BASE_DIR)
 
-load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR + '.env')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
